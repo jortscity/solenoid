@@ -7,7 +7,7 @@ import { parseCsvRows } from "../csv";
 import { isSolError, ERROR_EXPLANATIONS } from "../errorValue";
 import { formatDateSerial, parseDateToSerial, serialToJsDate, DEFAULT_DATE_FORMAT } from "../nodes/date";
 import { coerceFrameCell, formatFrameCell, type FrameSourceColumn } from "../frame";
-import { describeColumn, distinctColumnValues, type ColumnProfile } from "../frameVerbs";
+import { describeColumn, distinctColumnValues } from "../frameVerbs";
 import { aggregate } from "../nodes/statsOps";
 import { formatNumberWithAnnotation, isDateStyle, applyLogicalStyle, type FormatAnnotation, type FormatStyleId } from "../formatAnnotationStore";
 import { isUnitCell } from "../unitValue";
@@ -28,6 +28,7 @@ import { parseRecordLayout, recordImageSrc } from "../nodes/visual";
 import { RecordGrid } from "./chartCards";
 import type { RecordField } from "../chartValue";
 import { PopupOverflowMenu } from "./PopupOverflowMenu";
+import { type FooterStat, type ColSummary, FOOTER_STAT_LABEL, STATS_BY_TYPE, defaultFooterStat, footerStatValue, formatFooterStat } from "./tableFooterStats";
 import { saveCsvFileDialog } from "../fileBridge";
 import { APP_LOCALE } from "../locale";
 import "./errorChip.css";
@@ -134,28 +135,6 @@ function colLabel(i: number): string {
  * Mode is set by which save callback the opener passes: `onSave` → numeric matrix,
  * `onSaveFrame`/`onSaveSource`/`onSaveRaw` → frame editor, none → read-only viewer.
  */
-type ColSummary = { profile: ColumnProfile; sum: number | null };
-type FooterStat = "sum" | "avg" | "min" | "max" | "median" | "count" | "distinct" | "blank" | "error";
-const NUMERIC_STATS: ReadonlyArray<FooterStat> = ["sum", "avg", "min", "max", "median"];
-const FOOTER_STAT_LABEL: Record<FooterStat, string> = {
-  sum: "Sum", avg: "Average", min: "Min", max: "Max", median: "Median",
-  count: "Count", distinct: "Distinct", blank: "Empty", error: "Errors",
-};
-function footerStatValue(stat: FooterStat, s: ColSummary): number | null {
-  const p = s.profile;
-  switch (stat) {
-    case "sum": return s.sum;
-    case "avg": return p.mean;
-    case "min": return p.min;
-    case "max": return p.max;
-    case "median": return p.median;
-    case "count": return p.count;
-    case "distinct": return p.distinct;
-    case "blank": return p.blank;
-    case "error": return p.error;
-  }
-}
-
 // The format row's fallback where neither a local pick nor an inherited format exists.
 function typeDefaultAnn(st: TablePopupState, j: number): FormatAnnotation {
   const unit = st.columnUnits?.[st.formatControls === "matrix" ? 0 : j]?.display ?? "none";
@@ -620,13 +599,15 @@ export function TablePopup() {
           const r = aggregate("sum", values.filter((v): v is number => typeof v === "number" && Number.isFinite(v)));
           sum = typeof r === "number" ? r : null;
         }
-        return { profile, sum };
+        // A logical column tallies its TRUE / FALSE cells (blanks and errors are neither).
+        const checked = type === "logical" ? values.filter((v) => v === true).length : null;
+        const unchecked = type === "logical" ? values.filter((v) => v === false).length : null;
+        return { profile, sum, checked, unchecked };
       });
     })() : null;
     summaryCache.current = { deps: summaryDeps, value };
   }
   const colSummaries = summaryCache.current.value;
-  const fmtStat = (n: number | null): string => (n == null ? "—" : formatScalar(n));
 
   const headers = editableHeaders ? headerNames : state.headers;
   // A frame's CSV view prepends a header line (below); a plain table/list doesn't.
@@ -1108,9 +1089,9 @@ export function TablePopup() {
                 <tr>
                   <th className="table-popup__corner" />
                   {Array.from({ length: viewCols }, (_, c) => {
-                    const numeric = colTypeAt(c) === "number";
-                    const stat: FooterStat = colStat[c] ?? (numeric ? "sum" : "count");
-                    const choices = (Object.keys(FOOTER_STAT_LABEL) as FooterStat[]).filter((k) => numeric || !NUMERIC_STATS.includes(k));
+                    const type = colTypeAt(c);
+                    const stat: FooterStat = colStat[c] ?? defaultFooterStat(type);
+                    const choices = STATS_BY_TYPE[type];
                     return (
                       <td key={c} className="table-popup__statcell">
                         {/* The visible picker is the stat's word (sized to itself); the real
@@ -1126,7 +1107,7 @@ export function TablePopup() {
                             {choices.map((k) => <option key={k} value={k}>{FOOTER_STAT_LABEL[k]}</option>)}
                           </select>
                         </span>
-                        <span className="table-popup__statvalue">{fmtStat(footerStatValue(stat, colSummaries[c]))}</span>
+                        <span className="table-popup__statvalue">{formatFooterStat(stat, footerStatValue(stat, colSummaries[c]))}</span>
                       </td>
                     );
                   })}
