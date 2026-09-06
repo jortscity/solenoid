@@ -17,8 +17,14 @@
       "allow": [
         { "path": "$HOME/**/*.json" },
         { "path": "$HOME/**/*.csv" },
-        { "path": "$HOME/**/*.md" }
+        { "path": "$HOME/**/*.md" },
+        { "path": "$HOME/**/*.yaml" },
+        { "path": "$HOME/**/*.yml" }
       ]
+    },
+    {
+      "identifier": "fs:allow-stat",
+      "allow": [{ "path": "$HOME/**" }]
     },
     {
       "identifier": "fs:allow-write-text-file",

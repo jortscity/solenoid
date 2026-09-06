@@ -17,6 +17,7 @@ export * from "./nodes/qr";
 export * from "./nodes/dataFeed";
 export * from "./nodes/sink";
 export * from "./nodes/obsidian";
+export * from "./nodes/taskNotes";
 export * from "./nodes/annotation";
 export * from "./nodes/report";
 export * from "./nodes/history";

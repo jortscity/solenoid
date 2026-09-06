@@ -1,6 +1,6 @@
 // Thin wrapper over Tauri's fs + dialog plugins. In the browser (no Tauri runtime)
 // every call is a guarded no-op rather than a throw.
-import { readTextFile, readDir, writeTextFile, rename, readFile, writeFile, mkdir, exists } from "@tauri-apps/plugin-fs";
+import { readTextFile, readDir, writeTextFile, rename, readFile, writeFile, mkdir, exists, stat } from "@tauri-apps/plugin-fs";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { join, dirname } from "@tauri-apps/api/path";
 
@@ -92,6 +92,28 @@ export async function listVaultMarkdownFiles(root: string, maxDepth = 6): Promis
 /** Read a vault-relative file ("notes/weekly.md") as text. Desktop only. */
 export async function readVaultFile(root: string, relPath: string): Promise<string> {
   const path = await join(root, ...relPath.split("/"));
+  return readTextFile(path);
+}
+
+/** A vault-relative file's modified + created times, in epoch ms (null when the
+ *  platform omits one, or off desktop). Used for the Vault Folder cube's
+ *  `modified` / `created` columns (needs `fs:allow-stat`). */
+export async function statVaultFile(root: string, relPath: string): Promise<{ mtimeMs: number | null; birthtimeMs: number | null } | null> {
+  if (!isDesktop()) return null;
+  try {
+    const path = await join(root, ...relPath.split("/"));
+    const info = await stat(path);
+    return {
+      mtimeMs: info.mtime ? info.mtime.getTime() : null,
+      birthtimeMs: info.birthtime ? info.birthtime.getTime() : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Read an absolute path as text (desktop only). */
+export async function readTextFilePath(path: string): Promise<string> {
   return readTextFile(path);
 }
 

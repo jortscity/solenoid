@@ -1,9 +1,10 @@
 import { ClassicPreset } from "rete";
 import { frameIn, frameOut, dateIn, dateOut, strOut, dateListIn } from "./shared";
-import { jsDateToSerial } from "./dateSerial";
 import { isSolError, type SolError } from "../errorValue";
 import { type FrameValue } from "../frame";
 import type { FrameHint } from "../frameHint";
+import { type Shape } from "../frameShape";
+import { type FrameShapeContext } from "./frameShapeHook";
 import { scheduleTasks } from "../scheduleCpm";
 
 // The Schedule node (1.4 H6): one eager frame verb — the critical-path pass lives in
@@ -18,7 +19,8 @@ export const SCHEDULE_MODE_OPTIONS: ReadonlyArray<{ value: ScheduleMode; label: 
 
 /** Today at midnight UTC as a serial — the start a fresh card schedules from. */
 function todaySerial(): number {
-  return Math.floor(jsDateToSerial(new Date()));
+  const d = new Date();
+  return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000 + 25569;
 }
 
 export class ScheduleNode extends ClassicPreset.Node {
@@ -56,6 +58,19 @@ export class ScheduleNode extends ClassicPreset.Node {
     this.addOutput("frame", frameOut("Schedule"));
     this.addOutput("finish", dateOut("Project finish"));
     this.addOutput("gantt", strOut("Gantt"));
+  }
+
+  /** The static shape: the tasks frame's columns plus the four appended (same-named input
+   *  columns are replaced, as data() does). */
+  frameShape(_outKey: string, ctx: FrameShapeContext): Shape | null {
+    const input = ctx.inputShape("tasks");
+    if (!input) return null;
+    const taken = new Set(["Start", "Finish", "Float", "Critical"]);
+    return { columns: [
+      ...input.columns.filter((c) => !taken.has(c.name)),
+      { name: "Start", type: "date" }, { name: "Finish", type: "date" },
+      { name: "Float", type: "number" }, { name: "Critical", type: "logical" },
+    ] };
   }
 
   data(inputs: { tasks?: (FrameValue | null)[]; start?: (number | null)[]; holidays?: (number | null)[][] }) {
