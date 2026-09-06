@@ -769,7 +769,7 @@ export class VaultFolderNode extends ClassicPreset.Node {
   }
 
   data(): { cube: CubeValue | null } {
-    const key = connectionStore.key(this.id, `${this.vault} ${this.folder} ${this.glob} ${this.nameFormat} ${this.includeBody ? 1 : 0}`);
+    const key = connectionStore.key(this.id, `${this.vault}\u0000${this.folder}\u0000${this.glob}\u0000${this.nameFormat}\u0000${this.includeBody ? 1 : 0}`);
     if (key !== this._lastKey) {
       this._lastKey = key;
       if (!isDesktop()) {
