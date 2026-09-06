@@ -71,7 +71,9 @@ wall clock at Run; `{{daily}}` reads `.obsidian/daily-notes.json`; Vault Folder 
 built-in out of daily-note names (journaling as a time series); "next 7 days" is `TODAY()+7` in
 an Expression, Filter's value stays literal; a midnight timer calls `requestRecalc()` so an open
 dashboard rolls the day and the existing "day moved" Alert fires; B bumps `dateModified` /
-mdbase `updated` when a note has one. Follow-up ask ("what about TaskNotes itself?") grew item F
+mdbase `updated` when a note has one. Final pass: the bundle rewritten as OUTCOMES (563 → 396 lines) per
+the doc rule — build history dropped (it is here and in git), every decision and reopen-guard
+kept, plus a § Rejected shapes relapse guard and § Defaults standing in for author calls. Follow-up ask ("what about TaskNotes itself?") grew item F
 into six sub-items — the ranking is by what Bases formulas cannot do (dependency traversal,
 Monte Carlo, pivots), read via the API so field mapping stays the plugin's job.
 
