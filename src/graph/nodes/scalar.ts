@@ -3,7 +3,7 @@ import { broadcast, broadcastErr, broadcastUnit, anyDimensioned, readInput, numL
 import { lnGamma } from "./mathUtils";
 import { solError, type SolError } from "../errorValue";
 import type { FormatAnnotation } from "../formatAnnotationStore";
-import { type UnitCell, dimOf, magnitudeOf, tagDim, unitError, arithmeticCell, type ArithmeticOp } from "../unitValue";
+import { type UnitCell, dimOf, magnitudeOf, tagDim, unitError, arithmeticCell, isUnitCell, type ArithmeticOp } from "../unitValue";
 import { type Dim, DIMENSIONLESS, dimEqual, dimPow, isDimensionless } from "../dimension";
 
 // ─── Bessel helpers ───────────────────────────────────────────────────────────
@@ -360,14 +360,21 @@ export class MathFnNode extends ClassicPreset.Node {
     let result: number | UnitCell | (number | UnitCell | SolError | null)[] | SolError | null = null;
     if (input !== null) {
       if (anyDimensioned(input as UnitOperand | UnitOperand[])) {
-        // mathFnResultDim gates a dimensioned argument. A UnitCell angle is already in
-        // base radians, so trig computes on the magnitude with no deg conversion.
+        // Per-cell unit interpretation over a mixed list. mathFnResultDim gates a
+        // dimensioned argument. A UnitCell angle is already base RADIANS, so it computes
+        // on its magnitude with NO deg conversion — it carries its own unit. A BARE cell
+        // has no unit of its own, so it follows the node's resolved angle mode (the deg
+        // conversion the all-plain path applies) — so one list can mix tagged-radian
+        // angle cells with bare degree numbers and read each correctly.
         result = broadcastUnit((cell) => {
           const rd = mathFnResultDim(this.op, dimOf(cell));
           if (typeof rd !== "string" && (rd as SolError).code) return rd as SolError;
-          const raw = computeRaw(magnitudeOf(cell));
+          const bare = !isUnitCell(cell);
+          const x = magnitudeOf(cell);
+          const raw = computeRaw(bare && fwdDeg ? x * DEG2RAD : x);
           if (raw === null) return domainErr();
-          return rd === "strip" ? raw : tagDim(raw, rd as Dim);
+          const out = bare && invDeg ? raw * RAD2DEG : raw;
+          return rd === "strip" ? out : tagDim(out, rd as Dim);
         }, input as UnitOperand | UnitOperand[]);
       } else {
         result = broadcastErr((x) => compute(x) ?? domainErr(), input);
