@@ -51,10 +51,11 @@ list-valued property (`tags`, `projects`, `contexts`) or a nested object (`timeE
 rows-of-objects key) has no honest cell in a flat frame — a folder of notes IS records whose
 fields can be lists or tables, which is the cube's definition. The lattice already refuses to
 let a cube flow into a `frame` socket ("the nesting would be silently dropped",
-`sockets.ts`), so the flat projection is an **explicit verb**, not a second socket: a new
-**Flatten** cube verb (A′) beside the existing Unnest (one nested column → long form) and
-Cube Rollup (aggregate a nested column). A first draft had a `frame` twin output on each
-reader; dropped — it hid a general verb the cube family lacks and doubled every socket doc.
+`sockets.ts`), and the author asked what a "flatten" step would even be for — the answer was
+"to reach the 39 frame-only verbs", which is a reason to make the **row verbs take cubes**
+(A′), not to add a node. Bases users filter and sort notes with list properties without a
+flattening step because the filter only reads scalar columns; Solenoid does the same. Two
+drafts died here: a `frame` twin output on each reader, then a Flatten verb with a rule menu.
 
 ## The ecosystem, read 2026-09-06 (what the plan leans on)
 
@@ -142,17 +143,24 @@ types: ColumnTypes)`), `mdbaseTypes.ts` (schema → `FrontmatterFieldType`),
 `obsidianTypes.ts` (types.json → the same), each unit-tested off a fixture folder in
 `fixtures/vault/` (an mdbase collection, a plain folder, a folder with types.json).
 
-**A′. Flatten** (a cube verb in `nodes/cube.ts`, Add → Table verbs beside Unnest; the general
-gap this bundle exposes, useful with no vault in sight). In: `cube`. Out: `frame`. One rule
-per nested-column KIND, each an ArgSelect: **lists** → *Join* (items joined by a separator
-literal, default `", "`) / *Count* / *First* / *Drop*; **nested frames / cubes** → *Count* /
-*First row's first cell* / *Drop*. Scalar columns pass through typed. A list cell joined
-becomes `string`; Count becomes `number`. Pure `flattenCube()` beside `nestJoin` in
-`frameVerbs.ts`, tested on mixed cells (a list cell in a column that is scalar elsewhere
-widens the column to `string` under Join). A per-column override map (the Decision Matrix
-`normMap` pattern) is v2 if a folder mixes the two needs. **Why not a `flat` toggle on the
-reader** (a Cast-style in-place retype, `retypeReconciles`): kept as the fallback if the extra
-node annoys in practice; the verb is the honest, reusable form and the first cut ships only it.
+**A′. The row verbs take cubes** (the general change this bundle needs; useful with no vault
+in sight). The verbs whose operation reads only scalar columns and keeps rows whole accept a
+cube on their table input — `cubeIn("Table / Cube")`, the XLOOKUP precedent — and nested cells
+ride along untouched: **Filter, Sort, Head, Distinct, Get Row** (row selection), **Get Column**
+(a scalar column → its list; a nested column → `#SHAPE!` in v1), **Decision Matrix** (scalar
+criteria; list/nested columns ignored like date columns are), and **H6 Schedule** (Predecessors
+as a text cell OR a list cell). Output follows input: a cube in → a cube out, through the
+passthrough declaration (`nodes/passthrough.ts`, the `single` mode Display and Reverse use)
+so the output type adopts. Mechanism: ONE helper, `selectCubeRows(cube, indices)` in
+`frame.ts`, fed by the verb's existing predicate / sort key evaluated over the scalar column —
+the eager JS branch taken when `isCubeValue(input)`, before the lazy `FrameRef` path, exactly
+the `decisionMatrix` class; Polars never sees a nested cell, so `oneVerbCorpus` is untouched
+(no new `FrameOp`). **Not** cube-tolerant: the aggregating and reshaping verbs (GROUPBY,
+PIVOTBY, Join, Append, Add Column…) — they would have to decide what a nested cell means, and
+Cube Rollup / Nest Join / Unnest already own that. The only place a list cell is ever joined
+to text is **Write File** in CSV mode (`", "`), because a CSV cell has no other form. Tests:
+`cubeRowVerbs.test.ts` — each verb over a fixture cube with a list column and a nested-frame
+column: rows selected correctly, nested cells identical by reference, output brand `__cube`.
 
 **B. Write Properties** (sink, Add → Connections beside Write File; Run-button only,
 `sinkRunButtonOnly`). Input: **`cube`** (a frame widens into it, so either reader output fits;
@@ -218,12 +226,12 @@ sub-tables, which is what the cube exists for), **Calendar events** (`frame`: `t
 end · source`, window from two date inputs), **Stats** (`/api/stats` as scalars — KPI-shaped,
 deliberately not a one-row frame). No separate time-entries provider: **Unnest** the cube's
 `timeEntries` for the long form and **Cube Rollup** (sum `minutes`) is `trackedMinutes`
-recomputed. **Flatten** (A′) with Join on `blockedBy` yields `predecessors` as `"A, B"` —
-**exactly H6 Schedule's input** — so nothing task-specific is needed for the flat path. Pure
+recomputed. `blockedBy` as a list cell is what H6 Schedule reads directly (A′), so nothing
+task-specific stands between the feed and the schedule. Pure
 core `taskNotesApi.ts` (paging + cube mapping over a fetch stub; one fixture per endpoint).
 What the tables unlock, ranked by what Bases cannot do:
 
-- **F1 Schedule from dependencies.** Tasks → Flatten → H6 Schedule (`../1.4-plan.md` § H6,
+- **F1 Schedule from dependencies.** Tasks → H6 Schedule (`../1.4-plan.md` § H6,
   now specced to the row: Task · Duration · Predecessors + Start / Working days / Holidays →
   Start · Finish · Float · Critical + Project finish). Duration = `timeEstimate` ÷ an hours-per-day literal (a
   Math node, or H6's own `hoursPerDay` if the author wants it on the card); then `PUT`
@@ -309,7 +317,7 @@ actions, CloudEvents, hosted Connect. Wikilink resolution inside Note bodies and
 | Node | Kind · menu | In | Out | Init (persisted) | Pure core · test |
 |---|---|---|---|---|---|
 | Vault Folder | connection · Connections | — | `cube` ("Notes") | vault, folder, glob, includeBody, refreshMinutes | `vaultFrame.ts` (`notesToCube`), `mdbaseTypes.ts`, `obsidianTypes.ts` · `vaultFrame.test.ts` over `fixtures/vault/` |
-| Flatten | frame · Table verbs | `cube` | `frame` | listRule, nestedRule, separator | `flattenCube()` in `frameVerbs.ts` · `flatten.test.ts` |
+| Filter / Sort / Head / Distinct / Get Row / Get Column / Decision Matrix (exist) | — | table input becomes `cubeIn` | output adopts (cube in → cube out) | — | `selectCubeRows` in `frame.ts` · `cubeRowVerbs.test.ts` |
 | Write Properties | sink · Connections | `cube` (frame widens) | `plan` frame | vault, keys, addMissing | `frontmatterPatch.ts` (+ nested frame → `- {k: v}` block) · `frontmatterPatch.test.ts` (round-trips: untouched bytes identical; cube → vault → cube equal) |
 | Write to Obsidian (+mode) | sink (exists) | `document` | — | + mode | `managedBlock.ts` · `managedBlock.test.ts` |
 | TaskNotes | connection · Connections | `from`, `to` (dates, Calendar provider only) | Tasks: `cube`; Calendar: `frame`; Stats: scalars | provider, refreshMinutes | `taskNotesApi.ts` · `taskNotesApi.test.ts` (fixtures per endpoint) |
@@ -323,9 +331,9 @@ unreachable vault/port with the reason in the status line, never a throw.
 
 ## Seeds
 
-Seeds must load on web with no vault, so each ships a **Frame Input snapshot in the shape
-Flatten emits from the feed** (a comment on the node: "replace me with TaskNotes → Flatten";
-the nested shape is demonstrable with Build Cube + Nest Join if a seed needs it):
+Seeds must load on web with no vault, so each ships a **Frame Input snapshot of the feed's
+scalar columns** (a comment on the node: "replace me with a TaskNotes node"; the nested shape
+is demonstrable with Build Cube + Nest Join if a seed needs it, and the row verbs take it):
 **"Which task next?"** (F4: 12 tasks → Decision Matrix with priority / days-to-due / estimate →
 Score → bar chart, and a Write Properties node disarmed at the end) and, when H6 lands,
 **"Kitchen remodel from TaskNotes"** (H6's own seed re-based on the tasks shape, with
@@ -344,7 +352,8 @@ The fs allowlist change (`.yaml`/`.yml` read) is a one-line capability edit, doc
 
 ## Sequencing (dependency order)
 
-A + A′ → B → D → C → F (feed + F4/F3/F5 + F6) → I → J → E; F1 when H6 lands; G and H on hold. A alone is a
+A′ → A → B → D → C → F (feed + F4/F3/F5 + F6) → I → J → E; F1 when H6 lands; G and H on hold.
+A′ first: a Vault Folder cube that nothing can filter is not a product. A alone is a
 product ("your vault as a table"). A + B is the loop ("compute in Solenoid, see it in Bases").
 F is independent of B and C and could go first if the author's own use is task-shaped.
 
@@ -366,10 +375,10 @@ F is independent of B and C and could go first if the author's own use is task-s
    not a second node.
 6. **Import Note stays a Note** (item I) and borrows the refresh timer + watcher hook rather
    than becoming a connection node.
-7. **Readers emit one `cube`, Flatten is the explicit way down, writers take `cube`, and a
-   sink's preview is a `plan` frame.** The nested form is the truth of a note folder; the flat
-   form is a named, configurable step the lattice already insists on; the plan is data the
-   graph can inspect rather than a string on a card.
+7. **Readers emit one `cube`, the row verbs take it, writers take `cube`, and a sink's
+   preview is a `plan` frame.** The nested form is the truth of a note folder; filtering and
+   sorting it never needs a flattening step; the plan is data the graph can inspect rather than
+   a string on a card.
 
 ## Risks
 

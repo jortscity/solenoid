@@ -38,8 +38,12 @@ F2 gets an Alert on overload; item **J headless seam** (`run-graph --vault / --t
 --run <sink>` — the CLI's explicit flag is the Run button's headless equivalent; the one
 `sinkRunButtonOnly` wording change) makes the Obsidian-triggered recompute (G's reverse path) real. Author: "Vault Folder → cube instead? properties can be
 lists" — adopted: readers emit ONE `cube` (the `frame` twin output is gone; the lattice already
-refuses cube → frame), and the flat path is a new general **Flatten** cube verb (A′: per-kind
-Join / Count / First / Drop) whose Join on `blockedBy` is exactly H6's `predecessors` text. Follow-up ask ("what about TaskNotes itself?") grew item F
+refuses cube → frame), then the author asked what Flatten was FOR — "to reach the 39 frame-only
+verbs" — so A′ is now **the row verbs take cubes** (Filter / Sort / Head / Distinct / Get Row /
+Get Column / Decision Matrix / H6 via `cubeIn`, output adopting through the passthrough
+declaration, one `selectCubeRows` helper on the eager JS branch); no Flatten node, and the only
+list-to-text join left is Write File's CSV mode. Sequenced first: a cube nothing can filter is
+not a product. Follow-up ask ("what about TaskNotes itself?") grew item F
 into six sub-items — the ranking is by what Bases formulas cannot do (dependency traversal,
 Monte Carlo, pivots), read via the API so field mapping stays the plugin's job.
 
