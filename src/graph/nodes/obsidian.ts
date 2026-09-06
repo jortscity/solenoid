@@ -162,10 +162,12 @@ export class WriteObsidianNode extends ClassicPreset.Node {
 export class ImportObsidianNode extends NoteNode {
   /** Vault-relative path of the source `.md` file ("" until one is picked). */
   fileName: string;
+  /** Minutes between automatic reloads from the vault, 0 = off — the component runs the timer. */
+  refreshMinutes: number;
 
   constructor(init?: {
     label?: string; body?: string; color?: string; width?: number; height?: number;
-    collapsed?: boolean; fieldTypes?: Record<string, FrontmatterFieldType>; fileName?: string;
+    collapsed?: boolean; fieldTypes?: Record<string, FrontmatterFieldType>; fileName?: string; refreshMinutes?: number;
   }) {
     super({
       label: init?.label ?? "Import Obsidian Note",
@@ -177,5 +179,6 @@ export class ImportObsidianNode extends NoteNode {
       fieldTypes: init?.fieldTypes,
     });
     this.fileName = init?.fileName ?? "";
+    this.refreshMinutes = Math.max(0, Math.round(init?.refreshMinutes ?? 0));
   }
 }

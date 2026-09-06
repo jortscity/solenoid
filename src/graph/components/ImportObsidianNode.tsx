@@ -48,6 +48,7 @@ export function ImportObsidianComponent({ data, emit }: NodeProps<ImportObsidian
   const [colorOpen, setColorOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [files, setFiles] = useState<string[]>([]);
+  const [minutes, setMinutes] = useState(data.refreshMinutes);
   const [, setFieldsVersion] = useState(0);
   const swatchRef = useRef<HTMLButtonElement>(null);
   const paletteRef = useRef<HTMLDivElement>(null);
@@ -108,6 +109,12 @@ export function ImportObsidianComponent({ data, emit }: NodeProps<ImportObsidian
     try { await applyBody(await readVaultFile(vault, data.fileName), data.fileName); }
     catch { /* file gone — keep what's loaded */ }
   }
+  useEffect(() => {
+    if (minutes <= 0 || !desktop) return;
+    const id = setInterval(() => { void reload(); }, minutes * 60_000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [minutes, desktop, data.fileName, vault]);
 
   function pick(c: string) { setColor(c); data.color = c; void getActiveView()?.rerenderNode(data.id); scheduleAutosave(); }
   function toggleCollapse() { const v = !collapsed; setCollapsed(v); data.collapsed = v; scheduleAutosave(); }
@@ -257,6 +264,19 @@ export function ImportObsidianComponent({ data, emit }: NodeProps<ImportObsidian
               </div>
               <div className="sol-import__foot">
                 <span className="sol-import__file" title={data.fileName || undefined}>{data.fileName || "no file"}</span>
+                <label className="sol-import__every" title="Reload from the vault on this cadence. 0 turns it off.">
+                  every
+                  <input
+                    className="sol-import__minutes"
+                    type="number"
+                    min={0}
+                    value={minutes}
+                    onChange={(e) => setMinutes(Math.max(0, Math.round(Number(e.target.value) || 0)))}
+                    onBlur={() => { if (minutes !== data.refreshMinutes) { data.refreshMinutes = minutes; scheduleAutosave(); } }}
+                    onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+                  />
+                  min
+                </label>
                 <button type="button" className="sol-import__reload" title="Reload from the vault" onClick={() => void reload()} disabled={!data.fileName}>Reload</button>
               </div>
             </>
