@@ -91,7 +91,7 @@ export const INIT_FIELD_ORDER = [
   "pastDays", "forecastDays",
   "country", "region", "year",
   "qrTemplate",
-  "vault", "folder", "glob", "nameFormat", "includeBody", "addMissing",
+  "vault", "folder", "glob", "nameFormat", "includeBody", "addMissing", "writeBase",
   "cubeText",
   "stamp", "split",
 ] as const;

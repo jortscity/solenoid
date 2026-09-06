@@ -5,7 +5,8 @@
 // button (armed), gated on hasFs() so the headless `--run` can drive it.
 import { ClassicPreset } from "rete";
 import { cubeIn, frameOut } from "./shared";
-import { planPropertyWrites, propertyPlanFrame, resolveKey, patchFrontmatter, type PlanRow } from "../frontmatterPatch";
+import { planPropertyWrites, propertyPlanFrame, resolveKey, patchFrontmatter, writableKeys, type PlanRow } from "../frontmatterPatch";
+import { buildBaseView, baseRelPath } from "../baseView";
 import { formatDateSerial } from "./dateSerial";
 import { mdbaseSchemaFor, validateAgainst, parseMdbaseCollection, type MdbaseCollection, type PropConstraint } from "../mdbaseTypes";
 import { type Shape } from "../frameShape";
@@ -57,6 +58,8 @@ export class WritePropertiesNode extends ClassicPreset.Node {
   stringLiterals: Record<string, string> = { keys: "" };
   /** Append + register a key the note doesn't have yet. */
   addMissing = true;
+  /** Also write a `<node>.base` beside the notes (a live Bases table over what B wrote). */
+  writeBase = false;
   /** Never persisted (sinkRunButtonOnly) — always false on a fresh construction. */
   enabled = false;
   cachedCube: CubeValue | SolError | null = null;
@@ -73,11 +76,12 @@ export class WritePropertiesNode extends ClassicPreset.Node {
     ] };
   }
 
-  constructor(init?: { label?: string; vault?: string; addMissing?: boolean }) {
+  constructor(init?: { label?: string; vault?: string; addMissing?: boolean; writeBase?: boolean }) {
     super("WriteProperties");
     this.label = init?.label ?? "Write Properties";
     this.vault = init?.vault ?? settingsStore.get("obsidianVault") ?? "";
     if (init?.addMissing === false) this.addMissing = false;
+    if (init?.writeBase) this.writeBase = true;
     this.addInput("rows", cubeIn("Rows"));
     this.addOutput("plan", frameOut("Plan"));
   }
@@ -237,6 +241,16 @@ export class WritePropertiesNode extends ClassicPreset.Node {
         }
       }
       if (this.addMissing && newTypes.size > 0) await this.registerTypes(newTypes);
+      if (this.writeBase && wrote > 0 && cube) {
+        try {
+          const folders = new Set(this.planRows.map((r) => (r.path.includes("/") ? r.path.slice(0, r.path.lastIndexOf("/")) : "")));
+          const folder = folders.size === 1 ? [...folders][0] : "";
+          await writeTextFilePath(
+            await joinPath(this.vault, ...baseRelPath(folder, this.label).split("/")),
+            buildBaseView(folder, writableKeys(cube, this.stringLiterals.keys ?? ""), this.label),
+          );
+        } catch { /* the .base companion is a convenience, never a write failure */ }
+      }
       this.status = failed ? "error" : "ok";
       this.statusMessage = `${changed} propert${changed === 1 ? "y" : "ies"} across ${wrote} note${wrote === 1 ? "" : "s"}` +
         `${failed ? `, ${failed} failed — ${failures.join("; ")}` : ""}`;

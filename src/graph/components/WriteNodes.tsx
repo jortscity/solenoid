@@ -375,6 +375,7 @@ export function WritePropertiesComponent({ data, emit }: NodeProps<WriteProperti
   const [keys, setKeys] = useState(data.stringLiterals.keys ?? "");
   const [armed, setArmed] = useState(data.enabled);
   const [addMissing, setAddMissing] = useState(data.addMissing);
+  const [writeBase, setWriteBase] = useState(data.writeBase);
   const [status, setStatus] = useState<string>(data.status);
   const [message, setMessage] = useState(data.statusMessage);
   const desktop = isDesktop();
@@ -391,6 +392,7 @@ export function WritePropertiesComponent({ data, emit }: NodeProps<WriteProperti
   }
   function toggleArmed() { data.enabled = !data.enabled; setArmed(data.enabled); }
   function toggleAddMissing() { data.addMissing = !data.addMissing; setAddMissing(data.addMissing); void processGraph(); }
+  function toggleWriteBase() { data.writeBase = !data.writeBase; setWriteBase(data.writeBase); }
   async function preview() {
     setStatus("previewing");
     await data.preview();
@@ -427,6 +429,10 @@ export function WritePropertiesComponent({ data, emit }: NodeProps<WriteProperti
         <label className="sol-write__armed" title="Add + register a property the note doesn't have yet" {...stopPtr}>
           <input type="checkbox" checked={addMissing} onChange={toggleAddMissing} />
           Add missing
+        </label>
+        <label className="sol-write__armed" title="Also write a <node>.base view beside the notes" {...stopPtr}>
+          <input type="checkbox" checked={writeBase} onChange={toggleWriteBase} />
+          Write .base
         </label>
         <div className="sol-write__row">
           <button type="button" className="sol-write__run" disabled={!hasRows || busy}
