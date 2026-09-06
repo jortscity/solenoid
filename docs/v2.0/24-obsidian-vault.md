@@ -124,18 +124,40 @@ vault folder change bumps that node's connection token (`refreshConnection`) so 
 Obsidian recomputes the graph. Until it lands, A's `refreshMinutes` is the stopgap. This
 closes `../deferrals.md`'s "auto-reload an imported note" item.
 
-**F. TaskNotes Feed** (a connection node with a provider, like Data Feed; Settings gain
-`taskNotesUrl` + `taskNotesToken`). Providers: **Tasks** (walk `GET /api/tasks` pages → one
-frame: `path title status priority due scheduled projects contexts tags timeEstimate
-trackedMinutes archived`), **Time entries** (`/api/tasks/:id/time` per task, or
-`/api/time/summary` → `task · start · end · minutes`), **Stats** (`/api/stats` as scalars).
-Why an API node when A reads the same files: the plugin applies the user's **field mapping**,
-resolves recurrence instances, and totals `timeEntries` — replicating that from YAML is the
-maintenance treadmill `../out-of-scope.md` §6 warns about. A stays the vault-closed fallback.
-Writes: B gains a "via TaskNotes" switch that `PUT`s task rows through the API instead of
-patching YAML, so field mapping is honoured and webhooks/workflows fire. Pure core:
-`taskNotesApi.ts` (paging + row mapping over a fetch stub). Network goes through the existing
-`tauri-plugin-http` allow (`http://**` is already allowed).
+**F. TaskNotes** (its own slice; the data Solenoid is already good at lives here: estimates,
+time entries, dependencies, due dates, recurrence). Read through the **HTTP API**, not the
+files — field mapping, recurrence expansion and `timeEntries` totals are plugin logic
+(`../out-of-scope.md` §6); A over the tasks folder stays the vault-closed fallback. One
+connection node, **TaskNotes Feed**, with a provider selector (Settings gain `taskNotesUrl` +
+`taskNotesToken`; `http://**` is already allowed): **Tasks** (`GET /api/tasks` paged → `path
+title status priority due scheduled projects contexts tags timeEstimate trackedMinutes
+archived` + user fields), **Time entries** (long form `task · start · end · minutes`),
+**Dependencies** (`task · blockedBy` edge list, one row per edge), **Calendar events**
+(`/api/calendars/events?start&end` → `title · start · end · source`), **Stats** (scalars). Pure
+core `taskNotesApi.ts` (paging + row mapping over a fetch stub). What the frames unlock, ranked
+by what Bases cannot do:
+
+- **F1 Schedule from dependencies.** Tasks + Dependencies are the input of Arc 8's Schedule
+  verb (forward pass over Task / Duration / Depends + Holidays): earliest start, finish, slack,
+  critical path; write `scheduled` back. Bases formulas are per-row — a traversal is impossible
+  there. Arc 8 and this item pull each other forward.
+- **F2 Capacity and deadline probability.** GROUPBY due-week of estimates minus calendar hours
+  → overload chart; estimates through the composite Monte Carlo run mode with a per-task spread
+  → probability of a date, not a date.
+- **F3 Time analytics and billing.** PIVOTBY week × project, Window running totals, actual ÷
+  estimate per project as a calibration table; join a rates frame → an invoice Report → Write
+  to Obsidian.
+- **F4 "What next" via Decision Matrix.** Criteria from the row (priority, days-to-due,
+  estimate, a user field); write `score` back; a Bases view sorted by it is the prioritized list.
+- **F5 Recurrence adherence.** `complete_instances` expanded → streaks and completion rate per
+  task → heatmap.
+- **F6 Write Tasks** (sink, Run-button only): rows → `POST /api/tasks` (an amortization
+  schedule as payment tasks, a maintenance interval as a recurring task, F1's dates as
+  reschedules via `PUT`); a single text column can go through `/api/nlp/create`. B's "via
+  TaskNotes" switch is the same client.
+
+**Out:** timer / pomodoro control, kanban or calendar rendering — Solenoid computes over tasks,
+TaskNotes tracks them.
 
 **G. Webhook → recompute.** TaskNotes can POST `task.updated` to a URL, but the desktop app has
 no listener. Options: a tiny localhost listener in the Tauri shell (a Rust `axum` route that
@@ -159,8 +181,8 @@ actions, CloudEvents, hosted Connect. Wikilink resolution inside Note bodies and
 ## Sequencing (dependency order)
 
 A → B → D → C → F → E; G and H on hold. A alone is a product ("your vault as a table").
-A + B is the loop ("compute in Solenoid, see it in Bases"). F is the TaskNotes-specific slice
-and is independent of B and C.
+A + B is the loop ("compute in Solenoid, see it in Bases"). F is the TaskNotes-specific slice,
+independent of B and C; F1 waits on Arc 8's Schedule verb, the rest need only the feed.
 
 ## Author calls before building
 
@@ -172,8 +194,7 @@ and is independent of B and C.
 3. **Property writes: YAML patch (B) first, API (F) as a switch** — or API-only for task
    notes? Recommend patch-first: it works with Obsidian closed and covers every note, not
    just tasks.
-4. **Is F worth a provider now**, or does A over the tasks folder cover the author's own use
-   until field mapping bites?
+4. **F's order**: the feed + F4/F3 first (feed-only), or hold F for Arc 8 so F1 ships with it?
 
 ## Risks
 

@@ -18,7 +18,9 @@ tools — Solenoid is that companion. Keystone item is a Vault Folder → Frame 
 Constraints found on the way and recorded in the bundle: the desktop fs allowlist is by
 EXTENSION (`.md/.json/.csv` only), the vault root is an app-wide setting so graphs don't travel,
 the Import node is a NoteNode not a connection node, ISO datetimes in frontmatter land as strings.
-`deferrals.md`'s Obsidian follow-ups now point at the bundle. Four author calls are listed in it.
+`deferrals.md`'s Obsidian follow-ups now point at the bundle. Four author calls are listed in it. Follow-up ask ("what about TaskNotes itself?") grew item F
+into six sub-items — the ranking is by what Bases formulas cannot do (dependency traversal,
+Monte Carlo, pivots), read via the API so field mapping stays the plugin's job.
 
 ### SESSION DIGEST (2026-09-05 — free-drawn cables)
 
