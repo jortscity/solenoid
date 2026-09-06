@@ -31,7 +31,7 @@ a tagged cell in its own unit, a bare cell follows the node's angle mode). **The
 finished** (D9–F6 + Track H ruled; Call column + Track H headings; deferrals: D9, D10, E1, E3,
 F1–F4, H7, drill-in drawn cables). E4's premise was outdated (op cards already reshape sockets;
 packs don't). **H6 Schedule** built by the lead: `scheduleCpm.ts` (pure CPM in working-day index
-space) + `nodes/schedule.ts` + `kitchen-remodel` seed — see `node-coverage.md`. Author then:
+space) + `nodes/schedule.ts` + `remodel-gantt` seed — see `node-coverage.md`. Author then:
 "go nuts with the Obsidian integration as planned" — be takes A (Vault Folder → Cube) after the
 Garden seed, fe takes A′ (row verbs take cubes) then B (Write Properties) after D2.
 ### SESSION DIGEST (2026-09-06 — C1 widget nodes, all six shipped)

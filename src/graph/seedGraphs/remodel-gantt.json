@@ -1,7 +1,7 @@
 {
   "v": 2,
   "order": 517,
-  "label": "Kitchen remodel",
+  "label": "Remodel (Gantt)",
   "group": "Worked examples",
   "nodes": [
     {
@@ -10,8 +10,8 @@
       "x": -40,
       "y": -243,
       "init": {
-        "label": "Schedule",
-        "body": "# When will it be done, and what can't slip?\nA **Schedule** node runs the critical-path method over a task list: each task's **Duration** in working days and the tasks it waits on (**Predecessors**).\n\nIt appends **Start · Finish · Float · Critical** to the rows. Float is how many days a task can slip without moving the finish; the tasks with none are the critical path. **Project finish** comes out as its own value, and **Gantt** is Mermaid source the Mermaid node draws.\n\nTry it: make Paint take 5 days instead of 2 and watch it join the critical path.",
+        "label": "Remodel (Gantt)",
+        "body": "# When will it be done, and what can't slip?\nEight remodel tasks. A **Schedule** node runs the critical-path method over a task list: each task's **Duration** in working days and the tasks it waits on (**Predecessors**).\n\nIt appends **Start · Finish · Float · Critical** to the rows. Float is how many days a task can slip without moving the finish; the tasks with none are the critical path. **Project finish** comes out as its own value, and **Gantt** is Mermaid source the Mermaid node draws. A **Holidays** node feeds the days to skip.\n\nTry it: make Paint take 5 days instead of 2 and watch it join the critical path.",
         "color": "violet",
         "width": 380,
         "height": 270
@@ -21,7 +21,7 @@
       "id": "tasks",
       "type": "FrameInputNode",
       "x": 72,
-      "y": 328,
+      "y": 467,
       "init": {
         "label": "Tasks",
         "frameText": "[{\"name\":\"Task\",\"type\":\"string\",\"values\":[\"Demolition\",\"Plumbing rough-in\",\"Electrical rough-in\",\"Drywall\",\"Paint\",\"Cabinets\",\"Countertops\",\"Final inspection\"]},{\"name\":\"Duration\",\"type\":\"number\",\"values\":[2,3,2,2,2,4,5,0]},{\"name\":\"Predecessors\",\"type\":\"string\",\"values\":[\"\",\"Demolition\",\"Demolition\",\"Plumbing rough-in, Electrical rough-in\",\"Drywall\",\"Drywall\",\"Cabinets, Paint\",\"Countertops\"]}]"
@@ -31,7 +31,7 @@
       "id": "start",
       "type": "DateInputNode",
       "x": 95,
-      "y": 586,
+      "y": 725,
       "init": {
         "label": "Project start"
       },
@@ -41,18 +41,13 @@
     },
     {
       "id": "holidays",
-      "type": "ListInputNode",
-      "x": 95,
+      "type": "HolidaysNode",
+      "x": 72,
       "y": 123,
       "init": {
         "label": "Holidays",
-        "valueKeys": [
-          "v0"
-        ],
-        "dataType": "date"
-      },
-      "stringLiterals": {
-        "v0": "19-Jan-2026"
+        "country": "US",
+        "year": 2026
       }
     },
     {
@@ -134,7 +129,7 @@
         "color": "amber",
         "collapsed": false,
         "width": 292,
-        "height": 628
+        "height": 767
       }
     },
     {
@@ -171,7 +166,7 @@
     },
     {
       "source": "holidays",
-      "sourceOutput": "list",
+      "sourceOutput": "dates",
       "target": "schedule",
       "targetInput": "holidays"
     },

@@ -428,6 +428,7 @@ export function GeocodeComponent({ data, emit }: NodeProps<GeocodeNodeType>) {
             {data.matches.map((m2) => <option key={m2.label} value={m2.label}>{m2.label}</option>)}
           </LazySelect>
         )}
+        <div className="sol-conn__note">Open-Meteo geocoding.</div>
         <ConnectionStatusRow nodeId={data.id} onRefresh={() => void refreshConnection(data.id)} />
       </div>
       <InlineOutputRows
@@ -495,6 +496,7 @@ export function WeatherComponent({ data, emit }: NodeProps<WeatherNodeType>) {
       <div className="sol-conn">
         {numField("Past days", past, setPast)}
         {numField("Forecast days", fwd, setFwd)}
+        <div className="sol-conn__note">Open-Meteo forecast.</div>
         <ConnectionStatusRow nodeId={data.id} onRefresh={() => void refreshConnection(data.id)} />
         <RefreshIntervalField minutes={minutes} onCommit={(n) => { data.refreshMinutes = n; setMinutes(n); }} />
       </div>
@@ -577,6 +579,7 @@ export function HolidaysComponent({ data, emit }: NodeProps<HolidaysNodeType>) {
           onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
           onPointerDown={stopDragStart} onMouseDown={(e) => e.stopPropagation()}
         />
+        <div className="sol-conn__note">Nager.Date public holidays.</div>
         <ConnectionStatusRow nodeId={data.id} onRefresh={() => void refreshConnection(data.id)} />
         <RefreshIntervalField minutes={minutes} onCommit={(n) => { data.refreshMinutes = n; setMinutes(n); }} />
       </div>
@@ -647,7 +650,7 @@ export function FxComponent({ data, emit }: NodeProps<FxNodeType>) {
       <CurrencyRow data={data} emit={emit} socketKey="from" label="FROM" />
       <CurrencyRow data={data} emit={emit} socketKey="to" label="TO" />
       <div className="sol-conn">
-        <div className="sol-conn__note">ECB reference rates, once per business day.</div>
+        <div className="sol-conn__note">Frankfurter: ECB reference rates, once per business day.</div>
         <ConnectionStatusRow nodeId={data.id} onRefresh={() => void refreshConnection(data.id)} />
         <RefreshIntervalField minutes={minutes} onCommit={(n) => { data.refreshMinutes = n; setMinutes(n); }} />
       </div>
