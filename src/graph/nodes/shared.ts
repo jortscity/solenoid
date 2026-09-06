@@ -41,6 +41,11 @@ export const adoptiveDataOut  = (label: string) => new ClassicPreset.Output(new 
 /** A NON-adoptive `trueany` output for a generative result whose type can't be
  *  derived from any input; an EXTRACTION uses `trueAnyOut` + `passthrough()`. */
 export const staticTrueAnyOut = (label: string) => new ClassicPreset.Output(trueAnySocket, label);
+// The cube-family adoptive pair (A′): a row verb's table port accepts a Frame OR a Cube
+// and, with a `single` passthrough over it, hands the SAME rank back — a Frame in yields a
+// Frame out, a Cube in a Cube out. Base "cube" reverts the port to `cube` when unwired.
+export const cubeAdoptIn  = (label: string) => new ClassicPreset.Input(new AdoptiveSocket("cube"), label);
+export const cubeAdoptOut = (label: string) => new ClassicPreset.Output(new AdoptiveSocket("cube"), label);
 // Adoption here is purely informative: acceptance is unchanged and coerceInputs
 // treats an adopted concrete type identically to the neutral rung.
 export const anyTableIn = (label: string) => new ClassicPreset.Input(new AdoptiveSocket("anytable"), label);

@@ -54,7 +54,15 @@ import { CloseIcon } from "./CloseIcon";
 import { HEAD_OP_META, HEADER_OP_META, BLANK_ROW_OP_META, COLUMNS_OP_META } from "../nodes/frame";
 import { CubeDisplay } from "./CubeDisplay";
 import { isCubeValue } from "../frame";
-import { parseFrameSource, frameSourceToText, isFrameValue, frameRowCount, type FrameSourceColumn } from "../frame";
+import { parseFrameSource, frameSourceToText, isFrameValue, frameRowCount, type FrameSourceColumn, type FrameValue, type CubeValue } from "../frame";
+import type { SolError } from "../errorValue";
+
+/** A row verb (A′) caches a Frame OR a Cube; render whichever it is. */
+function FrameOrCubeDisplay({ value, label }: { value: FrameValue | CubeValue | SolError | null; label?: string }) {
+  return isCubeValue(value)
+    ? <CubeDisplay cube={value} label={label} />
+    : <FrameDisplay frame={value} label={label} />;
+}
 import { processGraph } from "../process";
 import { bumpConnectionVersion } from "../graphSignals";
 import { scheduleAutosave } from "../persistence";
@@ -187,7 +195,7 @@ export function BuildFrameComponent({ data, emit }: NodeProps<BuildFrameNodeType
   return (
     <NodeShell node={data} emit={emit}>
       <InlineInputs node={data} emit={emit} />
-      <FrameDisplay frame={data.cachedResult} label={nodeDisplayName(data)} />
+      <FrameOrCubeDisplay value={data.cachedResult} label={nodeDisplayName(data)} />
     </NodeShell>
   );
 }
@@ -198,7 +206,7 @@ export function DistinctComponent({ data, emit }: NodeProps<DistinctNodeType>) {
   return (
     <NodeShell node={data} emit={emit}>
       <InlineInputs node={data} emit={emit} />
-      <FrameDisplay frame={data.cachedResult} label={nodeDisplayName(data)} />
+      <FrameOrCubeDisplay value={data.cachedResult} label={nodeDisplayName(data)} />
     </NodeShell>
   );
 }
@@ -216,7 +224,7 @@ export function HeadComponent({ data, emit }: NodeProps<HeadNodeType>) {
     <NodeShell node={data} emit={emit}>
       <InlineInputs node={data} emit={emit} keys={keys} labelFor={(k) => (k === "rows" && op === "range" ? "From" : (data.inputs[k]?.label ?? k))} />
       <OpSelect value={op} onChange={setOp} options={HEAD_OP_OPTIONS} />
-      <FrameDisplay frame={data.cachedResult} label={nodeDisplayName(data)} />
+      <FrameOrCubeDisplay value={data.cachedResult} label={nodeDisplayName(data)} />
     </NodeShell>
   );
 }
@@ -234,7 +242,7 @@ export function SortFrameComponent({ data, emit }: NodeProps<SortFrameNodeType>)
     <NodeShell node={data} emit={emit}>
       <InlineInputs node={data} emit={emit} />
       <SegToggle value={dir} options={SORT_DIR_OPTIONS} onChange={setDir} />
-      <FrameDisplay frame={data.cachedResult} label={nodeDisplayName(data)} />
+      <FrameOrCubeDisplay value={data.cachedResult} label={nodeDisplayName(data)} />
     </NodeShell>
   );
 }
@@ -261,6 +269,17 @@ export const FILTER_OP_OPTIONS_WITH_ERROR: { value: FilterOp; label: string }[] 
   ...FILTER_OP_OPTIONS,
   { value: "noterror", label: "no error" },
   { value: "iserror", label: "has error" },
+];
+
+// The Frame Filter also takes a cube (A′): a list-cell column answers Bases' membership
+// predicates. "list …" keeps them distinct from the string "contains" above; on a frame
+// column they are a #SHAPE! (a frame holds no list).
+export const FILTER_OP_OPTIONS_WITH_LIST: { value: FilterOp; label: string }[] = [
+  ...FILTER_OP_OPTIONS_WITH_ERROR,
+  { value: "listContains", label: "list contains" },
+  { value: "listContainsAny", label: "list contains any" },
+  { value: "listContainsAll", label: "list contains all" },
+  { value: "listEmpty", label: "list is empty" },
 ];
 
 // The blank + error predicates take no comparison value — the Value field hides
@@ -345,7 +364,7 @@ export function FilterFrameComponent({ data, emit }: NodeProps<FilterFrameNodeTy
                     </button>
                   )}
                 </MeasuredSocketRow>
-                <ArgSelect value={c.op} options={FILTER_OP_OPTIONS_WITH_ERROR} onChange={(op) => updateCfg(id, { op })} />
+                <ArgSelect value={c.op} options={FILTER_OP_OPTIONS_WITH_LIST} onChange={(op) => updateCfg(id, { op })} />
                 {(!VALUELESS_OPS.has(c.op) || connected.has(valKey)) && (
                 <MeasuredSocketRow side="input" socketKey={valKey} nodeId={data.id} emit={emit} payload={data.inputs[valKey]!.socket}>
                   <span className="solenoid-node__io-label">Value</span>
@@ -387,7 +406,7 @@ export function FilterFrameComponent({ data, emit }: NodeProps<FilterFrameNodeTy
         </>
       )}
       <MeasuredSocketRow side="output" socketKey="frame" nodeId={data.id} emit={emit} payload={data.outputs.frame!.socket} hero>
-        <FrameDisplay frame={data.cachedResult} label={nodeDisplayName(data)} />
+        <FrameOrCubeDisplay value={data.cachedResult} label={nodeDisplayName(data)} />
       </MeasuredSocketRow>
       {/* The complement stays a LAZY ref — no preview here, just its socket
           (materializing it for a chip would collect a frame nobody asked for). */}
@@ -425,7 +444,7 @@ export function JoinComponent({ data, emit }: NodeProps<JoinNodeType>) {
       <InlineInputs node={data} emit={emit} />
       <ArgSelect value={how} options={JOIN_HOW_OPTIONS} onChange={setHow} />
       {how === "asof" && <SegToggle value={asofDirection} options={ASOF_DIRECTION_OPTIONS} onChange={setAsofDirection} />}
-      <FrameDisplay frame={data.cachedResult} label={nodeDisplayName(data)} />
+      <FrameOrCubeDisplay value={data.cachedResult} label={nodeDisplayName(data)} />
     </NodeShell>
   );
 }
@@ -441,7 +460,7 @@ export function ColumnsComponent({ data, emit }: NodeProps<ColumnsNodeType>) {
     <NodeShell node={data} emit={emit}>
       <InlineInputs node={data} emit={emit} labelFor={(k) => (k === "columns" ? COLUMNS_OP_META[op].label : (data.inputs[k]?.label ?? k))} />
       <OpSelect value={op} onChange={setOp} options={COLUMNS_OP_OPTIONS} />
-      <FrameDisplay frame={data.cachedResult} label={nodeDisplayName(data)} />
+      <FrameOrCubeDisplay value={data.cachedResult} label={nodeDisplayName(data)} />
     </NodeShell>
   );
 }
@@ -470,7 +489,7 @@ export function GroupByFrameComponent({ data, emit }: NodeProps<GroupByFrameNode
       <InlineInputs node={data} emit={emit} />
       <ArgSelect value={agg} options={AGG_OP_OPTIONS} onChange={setAgg} />
       <ArgSelect value={String(totalDepth)} options={GROUP_TOTAL_OPTIONS} onChange={(v) => setTotalDepth(Number(v))} />
-      <FrameDisplay frame={data.cachedResult} label={nodeDisplayName(data)} />
+      <FrameOrCubeDisplay value={data.cachedResult} label={nodeDisplayName(data)} />
     </NodeShell>
   );
 }
@@ -514,7 +533,7 @@ export function PivotComponent({ data, emit }: NodeProps<PivotNodeType>) {
         Configure fields…
       </button>
       <div className="solenoid-node__pivot-summary" title={pivotSummary(data)}>{pivotSummary(data)}</div>
-      <FrameDisplay frame={data.cachedResult} label={nodeDisplayName(data)} />
+      <FrameOrCubeDisplay value={data.cachedResult} label={nodeDisplayName(data)} />
     </NodeShell>
   );
 }
@@ -523,7 +542,7 @@ export function UnpivotComponent({ data, emit }: NodeProps<UnpivotNodeType>) {
   return (
     <NodeShell node={data} emit={emit}>
       <InlineInputs node={data} emit={emit} />
-      <FrameDisplay frame={data.cachedResult} label={nodeDisplayName(data)} />
+      <FrameOrCubeDisplay value={data.cachedResult} label={nodeDisplayName(data)} />
     </NodeShell>
   );
 }
@@ -558,7 +577,7 @@ export function AppendComponent({ data, emit }: NodeProps<AppendNodeType>) {
   return (
     <NodeShell node={data} emit={emit}>
       <ExtensibleInputs node={data} emit={emit} />
-      <FrameDisplay frame={data.cachedResult} label={nodeDisplayName(data)} />
+      <FrameOrCubeDisplay value={data.cachedResult} label={nodeDisplayName(data)} />
     </NodeShell>
   );
 }
@@ -567,7 +586,7 @@ export function BindColumnsComponent({ data, emit }: NodeProps<BindColumnsNodeTy
   return (
     <NodeShell node={data} emit={emit}>
       <ExtensibleInputs node={data} emit={emit} />
-      <FrameDisplay frame={data.cachedResult} label={nodeDisplayName(data)} />
+      <FrameOrCubeDisplay value={data.cachedResult} label={nodeDisplayName(data)} />
     </NodeShell>
   );
 }
@@ -576,7 +595,7 @@ export function RenameComponent({ data, emit }: NodeProps<RenameNodeType>) {
   return (
     <NodeShell node={data} emit={emit}>
       <InlineInputs node={data} emit={emit} />
-      <FrameDisplay frame={data.cachedResult} label={nodeDisplayName(data)} />
+      <FrameOrCubeDisplay value={data.cachedResult} label={nodeDisplayName(data)} />
     </NodeShell>
   );
 }
@@ -585,7 +604,7 @@ export function SplitColumnComponent({ data, emit }: NodeProps<SplitColumnNodeTy
   return (
     <NodeShell node={data} emit={emit}>
       <InlineInputs node={data} emit={emit} />
-      <FrameDisplay frame={data.cachedResult} label={nodeDisplayName(data)} />
+      <FrameOrCubeDisplay value={data.cachedResult} label={nodeDisplayName(data)} />
     </NodeShell>
   );
 }
@@ -594,7 +613,7 @@ export function AddIndexComponent({ data, emit }: NodeProps<AddIndexNodeType>) {
   return (
     <NodeShell node={data} emit={emit}>
       <InlineInputs node={data} emit={emit} />
-      <FrameDisplay frame={data.cachedResult} label={nodeDisplayName(data)} />
+      <FrameOrCubeDisplay value={data.cachedResult} label={nodeDisplayName(data)} />
     </NodeShell>
   );
 }
@@ -612,7 +631,7 @@ export function FillBlanksComponent({ data, emit }: NodeProps<FillBlanksNodeType
     <NodeShell node={data} emit={emit}>
       <InlineInputs node={data} emit={emit} />
       <SegToggle value={dir} options={FILL_DIR_OPTIONS} onChange={setDir} />
-      <FrameDisplay frame={data.cachedResult} label={nodeDisplayName(data)} />
+      <FrameOrCubeDisplay value={data.cachedResult} label={nodeDisplayName(data)} />
     </NodeShell>
   );
 }
@@ -628,7 +647,7 @@ export function ReplaceValuesComponent({ data, emit }: NodeProps<ReplaceValuesNo
     <NodeShell node={data} emit={emit}>
       <InlineInputs node={data} emit={emit} />
       <SegToggle value={mode} options={REPLACE_MODE_OPTIONS} onChange={setMode} />
-      <FrameDisplay frame={data.cachedResult} label={nodeDisplayName(data)} />
+      <FrameOrCubeDisplay value={data.cachedResult} label={nodeDisplayName(data)} />
     </NodeShell>
   );
 }
@@ -637,7 +656,7 @@ export function MergeColumnsComponent({ data, emit }: NodeProps<MergeColumnsNode
   return (
     <NodeShell node={data} emit={emit}>
       <InlineInputs node={data} emit={emit} />
-      <FrameDisplay frame={data.cachedResult} label={nodeDisplayName(data)} />
+      <FrameOrCubeDisplay value={data.cachedResult} label={nodeDisplayName(data)} />
     </NodeShell>
   );
 }
@@ -651,7 +670,7 @@ export function HeadersComponent({ data, emit }: NodeProps<HeadersNodeType>) {
     <NodeShell node={data} emit={emit}>
       <InlineInputs node={data} emit={emit} />
       <ArgSelect value={action} onChange={setAction} options={HEADER_OP_OPTIONS} />
-      <FrameDisplay frame={data.cachedResult} label={nodeDisplayName(data)} />
+      <FrameOrCubeDisplay value={data.cachedResult} label={nodeDisplayName(data)} />
     </NodeShell>
   );
 }
@@ -665,7 +684,7 @@ export function DropBlankRowsComponent({ data, emit }: NodeProps<DropBlankRowsNo
     <NodeShell node={data} emit={emit}>
       <InlineInputs node={data} emit={emit} />
       <ArgSelect value={mode} onChange={setMode} options={BLANK_ROW_OPTIONS} />
-      <FrameDisplay frame={data.cachedResult} label={nodeDisplayName(data)} />
+      <FrameOrCubeDisplay value={data.cachedResult} label={nodeDisplayName(data)} />
     </NodeShell>
   );
 }
@@ -697,7 +716,7 @@ export function DecisionMatrixComponent({ data, emit }: NodeProps<DecisionMatrix
       <SegToggle value={normalize} options={DECISION_NORMALIZE_OPTIONS} onChange={setNormalize} />
       <div className="solenoid-node__dm-caption">Output</div>
       <SegToggle value={detail} options={DECISION_DETAIL_OPTIONS} onChange={setDetail} />
-      <FrameDisplay frame={data.cachedResult} label={nodeDisplayName(data)} />
+      <FrameOrCubeDisplay value={data.cachedResult} label={nodeDisplayName(data)} />
     </NodeShell>
   );
 }
@@ -727,7 +746,7 @@ export function AllocatorComponent({ data, emit }: NodeProps<AllocatorNodeType>)
     <NodeShell node={data} emit={emit}>
       <ArgSelect value={mode} onChange={setMode} options={ALLOCATE_MODE_OPTIONS} />
       <InlineInputs node={data} emit={emit} cableOnlyKeys={cableOnly} />
-      <FrameDisplay frame={data.cachedResult} label={nodeDisplayName(data)} />
+      <FrameOrCubeDisplay value={data.cachedResult} label={nodeDisplayName(data)} />
     </NodeShell>
   );
 }
@@ -745,7 +764,7 @@ export function ReconcileComponent({ data, emit }: NodeProps<ReconcileNodeType>)
       {frameOut && (
         <MeasuredSocketRow hero side="output" socketKey="frame" nodeId={data.id} emit={emit} payload={frameOut.socket}>
           <div style={{ width: "100%" }}>
-            <FrameDisplay frame={data.cachedResult} label={nodeDisplayName(data)} />
+            <FrameOrCubeDisplay value={data.cachedResult} label={nodeDisplayName(data)} />
           </div>
         </MeasuredSocketRow>
       )}
@@ -862,7 +881,7 @@ export function AddColumnComponent({ data, emit }: NodeProps<AddColumnNodeType>)
         options={ADD_COLUMN_OPTIONS}
         onChange={(next) => { setAddAs(next); void applyAddColumnAddAs(data, next); }}
       />
-      <FrameDisplay frame={data.cachedResult} label={nodeDisplayName(data)} />
+      <FrameOrCubeDisplay value={data.cachedResult} label={nodeDisplayName(data)} />
     </NodeShell>
   );
 }
@@ -923,7 +942,7 @@ export function ComputedColumnComponent({ data, emit }: NodeProps<ComputedColumn
           />
         </div>
       ))}
-      <FrameDisplay frame={data.cachedResult} label={nodeDisplayName(data)} />
+      <FrameOrCubeDisplay value={data.cachedResult} label={nodeDisplayName(data)} />
     </NodeShell>
   );
 }
@@ -934,7 +953,7 @@ export function GetRowComponent({ data, emit }: NodeProps<GetRowNodeType>) {
   return (
     <NodeShell node={data} emit={emit}>
       <InlineInputs node={data} emit={emit} />
-      <FrameDisplay frame={data.cachedResult} label={nodeDisplayName(data)} />
+      <FrameOrCubeDisplay value={data.cachedResult} label={nodeDisplayName(data)} />
     </NodeShell>
   );
 }
@@ -973,7 +992,7 @@ export function DescribeComponent({ data, emit }: NodeProps<DescribeNodeType>) {
   return (
     <NodeShell node={data} emit={emit}>
       <InlineInputs node={data} emit={emit} />
-      <FrameDisplay frame={data.cachedResult} label={nodeDisplayName(data)} />
+      <FrameOrCubeDisplay value={data.cachedResult} label={nodeDisplayName(data)} />
     </NodeShell>
   );
 }
@@ -988,7 +1007,7 @@ export function CorrMatrixComponent({ data, emit }: NodeProps<CorrMatrixNodeType
     <NodeShell node={data} emit={emit}>
       <InlineInputs node={data} emit={emit} />
       <ArgSelect value={method} onChange={setMethod} options={CORR_METHOD_OPTIONS} />
-      <FrameDisplay frame={data.cachedResult} label={nodeDisplayName(data)} />
+      <FrameOrCubeDisplay value={data.cachedResult} label={nodeDisplayName(data)} />
     </NodeShell>
   );
 }
@@ -1074,7 +1093,7 @@ export function WindowComponent({ data, emit }: NodeProps<WindowNodeType>) {
     <NodeShell node={data} emit={emit}>
       <ArgSelect value={agg} onChange={setAgg} options={WINDOW_FN_OPTIONS} />
       <InlineInputs node={data} emit={emit} />
-      <FrameDisplay frame={data.cachedResult} label={nodeDisplayName(data)} />
+      <FrameOrCubeDisplay value={data.cachedResult} label={nodeDisplayName(data)} />
     </NodeShell>
   );
 }
