@@ -115,9 +115,13 @@ back. Nothing on the mdbase side does that today, and Bases formulas stop at per
 `FileLinkNode.path` pattern, defaulting from the setting at creation and shown as a chip),
 `folder` (vault-relative, "" = root), `glob` (optional, `tasks/**`), `includeBody` (off),
 `refreshMinutes`. One row per note; one output, **`cube`** (label "Notes"). Columns:
-built-ins `path · name · folder · created · modified` (file times as serials), then the
-**union of frontmatter keys in first-seen order** — `tags` arrives as the property it is (a
-list cell; inline `#tags` from bodies are v2 and would merge into the same column). Cells: a
+built-ins `path · name · folder · ext · size · created · modified · tags · links · embeds`
+(the Bases `file.*` set — see § Bases; file times as serials; `tags` = the property's list
+merged with inline `#tags`, `links` = every `[[wikilink]]` in body and frontmatter as a list
+of note names, `embeds` = the `![[…]]` subset — all three from one regex pass over the text
+that is already in memory, so they cost nothing and are NOT gated by `includeBody`), then the
+**union of frontmatter keys in first-seen order** (a frontmatter `tags` key is folded into the
+built-in, never a second column). Cells: a
 scalar as typed below; a list → a list cell (`CubeCell[]`); a rows-of-objects key → a nested
 frame (the same `rowsToFrame` the Import Note uses); a block-style nested object → a nested
 frame once the parser learns the shape (the v1 parser work item; until then the raw YAML text
@@ -160,9 +164,11 @@ adopts), **Get Column** (a scalar column → its list as today; a list column �
 columns are; still emits its ranking FRAME — not a passthrough), and **H6 Schedule**
 (Predecessors as a text cell OR a list cell; a cube in → the same cube with the four columns
 appended). **Filter on a list column** is the one predicate that must exist, because
-"notes tagged x" is THE vault query: `contains` (any item equals the value) and `is empty` work
+"notes tagged x" is THE vault query: the Bases list trio — `contains` (any item equals the
+value), `contains any` / `contains all` (a comma-separated value list) — plus `is empty` work
 on a list cell; every other operator on a list column → `#SHAPE!`, and Sort on a list column →
-`#SHAPE!`. Mechanism: ONE helper, `selectCubeRows(cube, indices)` in
+`#SHAPE!`. With `links` a built-in, "notes linking to X" is `links contains X` and the
+backlinks pane is a Filter; Nest Join notes × links is the vault's link graph as a cube. Mechanism: ONE helper, `selectCubeRows(cube, indices)` in
 `frame.ts`, fed by the verb's existing predicate / sort key evaluated over the scalar column —
 the eager JS branch taken when `isCubeValue(input)`, before the lazy `FrameRef` path, exactly
 the `decisionMatrix` class; Polars never sees a nested cell, so `oneVerbCorpus` is untouched
@@ -253,22 +259,33 @@ What the tables unlock, ranked by what Bases cannot do:
   Start · Finish · Float · Critical + Project finish). Duration = `timeEstimate` ÷ an hours-per-day literal (a
   Math node, or H6's own `hoursPerDay` if the author wants it on the card); then `PUT`
   `scheduled` back (F6). Bases formulas are per-row — a traversal is impossible there. Gate:
-  the Track H pick; the feed ships without it. **Many projects at once:** Nest Join projects ×
-  tasks → a cube, a composite in the **by-row** run mode runs H6 per nested frame → a cube of
-  schedules, Cube Rollup for each project's finish; Decision Sensitivity's scenario cube is the
-  precedent for "one row per run, the result nested". **A Gantt in Obsidian for free:** H6's
+  the Track H pick; the feed ships without it. **Many projects at once** (checked against
+  `composite.ts`): **by-row** iterates a wired FRAME's rows (one single-row frame per pass) or
+  a list — not a cube — and collects each output as a plain series. So: by-row over the
+  Projects frame, the tasks cube wired FIXED, Filter (A′, `projects contains`) inside the
+  composite → H6 → `Project finish` collects as a list and the schedule as a series of frames,
+  which **Build Cube** (a wired list → its elements are the cells) stacks into one cube
+  column beside the project names. No by-row-over-cubes needed; noted as a gap, not a
+  prerequisite. **A Gantt in Obsidian for free:** H6's
   `gantt` string output (the schedule as Mermaid `gantt` source) → the Mermaid node → a Report
   `=gantt` ref → Write to Obsidian already emits the fence, and Obsidian renders it natively.
   No figure code; the 2.0 canvas Gantt is a separate, later thing.
 - **F2 Capacity and deadline probability.** GROUPBY due-week of `timeEstimate` minus calendar
-  hours (H7 Common free time takes the busy windows) → overload chart; estimates through the
-  composite Monte Carlo run mode with a per-task spread → the probability of a date. The
-  per-task spread is a column on the tasks frame (a user field, or actual ÷ estimate from F3
-  joined by project), not a literal per task. An **Alert** node on the overload row count or
-  the deadline probability (`../subsystem-invariants.md` § Alert node) turns a vault edit,
-  via E, into a toast + HUD entry — the one "tracking-shaped" thing Solenoid does, and it's a
-  computed edge, not a task list. `timeEstimate` stays plain minutes (the unit lattice has no
-  time dimension; an FC formats it).
+  hours (H7 Common free time takes the busy windows) → overload chart. **The probability is
+  analytic, not simulated** (corrected against `composite.ts`: the Monte Carlo run mode
+  samples SCALAR input ports — each marker carries its own mean / ± spread / distribution —
+  and summarises each scalar output as mean ± sd; it cannot sample a column per row): a
+  per-task spread column (a user field, or actual ÷ estimate from F3 joined by project) →
+  variance per task → sum along the critical path (H6's `Critical`) or over all tasks for
+  effort → `NORM.DIST(deadline, mean, sd)` in an Expression — PERT, exact, all existing
+  nodes. Monte Carlo fits where the uncertainty IS scalar: a composite around H6 with one
+  uncertain "effort multiplier" port → `Project finish` as mean ± sd, today. Per-row
+  uncertainty proper is `12-value-model-extensions.md` #21 (uncertain values, VERY LATE): when
+  a column can carry ±, H6 propagates it and this item's full form falls out. An **Alert**
+  node on the overload row count or the probability (`../subsystem-invariants.md` § Alert
+  node) turns a vault edit, via E, into a toast + HUD entry — the one "tracking-shaped" thing
+  Solenoid does, and it's a computed edge, not a task list. `timeEstimate` stays plain minutes
+  (the unit lattice has no time dimension; an FC formats it).
 - **F3 Time analytics and billing.** PIVOTBY week × project, Window running totals,
   actual ÷ estimate per project as a calibration table; join a rates frame → an invoice Report
   → Write to Obsidian (C into the client's note).
@@ -323,11 +340,50 @@ and write its results back without a listener (G), and `vaultCube.test.ts` runs 
 node over `fixtures/vault/` instead of only the pure core.
 
 **Not doing.** `.canvas` export (`canvas-bases` already materializes Bases views; a Solenoid
-graph is computation, not a whiteboard). Writing `.base` view files (format in motion; a
-Bases view over B's written properties is one click in Obsidian anyway). mdbase views,
+graph is computation, not a whiteboard). Reading `.base` files as a query (§ Bases). mdbase views,
 actions, CloudEvents, hosted Connect. Wikilink resolution inside Note bodies and the
 `![[Note]]` transclusion switch on write — small polish after C. Inline `#tags` and
 `[[links]]` from bodies as columns — a body scan is A's `includeBody` plus a Text node.
+
+## What Bases gets right, and what of it to take (read 2026-09-06, author ask)
+
+The `.base` file is YAML: global `filters` (an `and` / `or` / `not` tree of expression
+strings), `formulas` (a JS-flavoured expression language with typed methods — `note.price`,
+`file.hasTag("x")`, `list.containsAny(…)`, `date.relative()`, `if(…)`), `properties`
+(display names), `summaries`, and `views` (table / cards / list / kanban / map, one `groupBy`,
+`order`, `limit`, per-column `summaries`), embeddable in a note as `![[File.base#View]]`,
+with `this` = the embedding note. What transfers:
+
+1. **The `file.*` built-ins** — `name · path · folder · ext · size · ctime · mtime · tags ·
+   links · embeds · backlinks · properties`. A's built-ins are now that set (without the
+   `file.` prefix — a dotted name would need the `@[file.name]` bracket form in every
+   formula; the Bases equivalence is one line in the node's help: `file.mtime` ↔ `modified`).
+   `backlinks` is the one to skip: Bases marks it "performance heavy", and it is a Filter on
+   `links` anyway. `tags` is content + frontmatter merged, exactly as Bases defines it.
+2. **The list predicates** `contains` / `containsAny` / `containsAll` / `isEmpty` — adopted
+   verbatim as A′'s Filter operators on list cells (above). `inFolder` is a text `starts
+   with` on `folder`; `hasLink` is `links contains`.
+3. **Summaries** — Bases offers Average · Min · Max · Sum · Range · Median · Stddev (number),
+   Earliest · Latest · Range (date), Checked · Unchecked (boolean), Empty · Filled · Unique
+   (any). The table popup's footer (`TablePopup.tsx` `FooterStat`) has sum · avg · min · max ·
+   median · count · distinct · empty · errors; **missing: Range, Stddev, Earliest / Latest for
+   date columns, Checked / Unchecked for logical columns.** Four cheap additions to a
+   type-aware footer; a table-popup item, not a vault one — filed in `../backlog.md`.
+4. **A live table in the note** — the one reason to WRITE a `.base`: after B writes `score`
+   and `rank` into 43 task notes, a managed block (C) that contains `![[Solenoid scores.base#
+   Ranked]]` shows a *live* Bases view over those notes instead of a frozen pipe table. The
+   file is tiny and its syntax is now documented (v1.9+): `filters: file.inFolder("tasks")`,
+   one `views:` entry with `order: [file.name, note.score, note.rank]`. Proposed as B's
+   **`writeBase` toggle (off)**: B writes `<node name>.base` beside the notes and C's block
+   can embed it. This reverses the earlier "never write `.base`" — the format was called "in
+   motion" before it was read; it is small and official.
+
+What NOT to take: the formula language (one formula surface, `../rules.md`; Excel parity is
+Solenoid's contract, and Bases' `.toFixed()`-style methods would be a second grammar), view
+types (cards / kanban / map are display — `../out-of-scope.md` §8), and reading a `.base`
+as A's query. That last one is tempting (point Vault Folder at a `.base`, inherit its
+filters) but means evaluating Bases expressions; the honest scope is A + Filter, and a `.base`
+embed in a note (item 4) covers the round trip from the other side.
 
 ## Node specs (the catalog rows a build session writes; DESIGN.md §7 voice)
 
@@ -336,7 +392,7 @@ actions, CloudEvents, hosted Connect. Wikilink resolution inside Note bodies and
 | Vault Folder | connection · Connections | — | `cube` ("Notes") | vault, folder, glob, includeBody, refreshMinutes | `vaultCube.ts` (`notesToCube`), `mdbaseTypes.ts`, `obsidianTypes.ts` · `vaultCube.test.ts` over `fixtures/vault/` |
 | Filter / Sort / Head / Distinct / Get Row (exist) | passthrough | table input becomes `cubeIn` | adopts: cube in → cube out | — (Filter gains `contains` / `is empty` for list cells) | `selectCubeRows` in `frame.ts` · `cubeRowVerbs.test.ts` |
 | Get Column / Decision Matrix / H6 (exist) | — | table input becomes `cubeIn` | unchanged (list / ranking frame / H6: the input cube + 4 columns) | — | same test file |
-| Write Properties | sink · Connections | `cube` (frame widens) | `plan` frame | vault, keys, addMissing, stamp | `frontmatterPatch.ts` (+ nested frame → `- {k: v}` block) · `frontmatterPatch.test.ts` (round-trips: untouched bytes identical; cube → vault → cube equal) |
+| Write Properties | sink · Connections | `cube` (frame widens) | `plan` frame | vault, keys, addMissing, stamp, writeBase | `frontmatterPatch.ts` (+ nested frame → `- {k: v}` block) · `frontmatterPatch.test.ts` (round-trips: untouched bytes identical; cube → vault → cube equal) |
 | Write to Obsidian (+mode) | sink (exists) | `document` | — | + mode | `managedBlock.ts` · `managedBlock.test.ts` |
 | TaskNotes | connection · Connections | `from`, `to` (dates, Calendar provider only) | Tasks: `cube`; Calendar: `frame`; Stats: scalars | provider, refreshMinutes | `taskNotesApi.ts` · `taskNotesApi.test.ts` (fixtures per endpoint) |
 | Write Tasks | sink · Connections | `cube` (frame widens) | `plan` frame | mode (create / update), keys, stamp | shares `taskNotesApi.ts`; list cells → the API's arrays |
@@ -415,7 +471,8 @@ off keeps it to properties, which is small.
 
 ## Sources (read 2026-09-06)
 
-- Obsidian: https://obsidian.md/help/properties · https://obsidian.md/help/bases/syntax
+- Obsidian: https://obsidian.md/help/properties · https://obsidian.md/help/bases/syntax ·
+  https://obsidian.md/help/bases/functions · https://obsidian.md/help/bases/views
 - TaskNotes: https://github.com/callumalpass/tasknotes · https://tasknotes.dev/HTTP_API/ ·
   https://tasknotes.dev/webhooks/ · https://tasknotes.dev/developers/specification/ ·
   https://github.com/callumalpass/tasknotes/releases

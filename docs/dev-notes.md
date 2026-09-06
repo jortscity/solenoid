@@ -48,7 +48,18 @@ is an EAGER cube (no `FrameRef` — nested cells never reach Polars), Filter gai
 `is empty` on list cells because "notes tagged x" is the vault query, `tags` is the property
 not a built-in, the write plan is `pending` until Preview reads the notes, a `%%` in managed-
 block content is refused rather than invisibly escaped, and the provenance stamp is opt-in on
-property writes. Follow-up ask ("what about TaskNotes itself?") grew item F
+property writes. **Monte Carlo corrected** against `composite.ts`: the run mode samples SCALAR
+ports and summarises scalar outputs (mean ± sd) — it cannot sample a column per row, and
+by-row iterates a frame's rows or a list (not a cube) into a plain series per port; F2 is now
+analytic (PERT variance sum + `NORM.DIST`), per-row uncertainty proper waits on bundle 12 #21,
+and multi-project Schedule is by-row over a Projects frame with Filter inside + Build Cube to
+stack the series. **Bases syntax read** (author ask): A's built-ins become the `file.*` set
+(`ext · size · tags · links · embeds` added, content+frontmatter tags merged, `backlinks`
+skipped as a Filter on `links`), Filter's list ops become Bases' `contains / containsAny /
+containsAll / isEmpty`, the footer's missing stats (Range, Stddev, Earliest/Latest,
+Checked/Unchecked) went to the backlog, and the "never write `.base`" call is reversed into B's
+`writeBase` toggle — a `![[x.base#View]]` inside a managed block is a LIVE table in the note.
+Not taken: the formula language, view types, reading a `.base` as a query. Follow-up ask ("what about TaskNotes itself?") grew item F
 into six sub-items — the ranking is by what Bases formulas cannot do (dependency traversal,
 Monte Carlo, pivots), read via the API so field mapping stays the plugin's job.
 

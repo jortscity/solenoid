@@ -35,6 +35,11 @@ elkjs-vs-rete-auto-arrange peer conflict left with the plugin.
   balancing is the Allocator" as a seed. GATE: nothing starts until the author picks; the first
   pass's Hungarian matching + Erlang staffing sit in `deferrals.md`.
 
+- [ ] **Table popup footer: type-aware stats** — add Range and Stddev (number), Earliest /
+  Latest (date), Checked / Unchecked (logical) beside the existing sum · avg · min · max ·
+  median · count · distinct · empty · errors (`TablePopup.tsx` `FooterStat`). Bases' summary set
+  (`v2.0/24-obsidian-vault.md` § Bases item 3); small, no vault involved.
+
 ## Composites
 
 - [ ] **LATER — Optimize run mode on composites (1.4 A6; author 2026-09-04c: in, not now).** Excel
