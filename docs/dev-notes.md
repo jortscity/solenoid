@@ -32,7 +32,11 @@ list-valued properties and nested objects had nowhere honest to go — readers n
 `cube` and write a nested frame as a `- {k: v}` block (lossless round trip), the Tasks provider's
 cube nests `timeEntries`/`complete_instances` (the separate time-entries provider is gone —
 Unnest / Cube Rollup), multi-project Schedule is a by-row composite over a Nest Join cube, and a
-write sink's preview is a `plan` frame output, not a status string. Follow-up ask ("what about TaskNotes itself?") grew item F
+write sink's preview is a `plan` frame output, not a status string. Then ("keep going"): H6 gains a
+`gantt` Mermaid-source output so Write to Obsidian renders a Gantt natively with no figure code;
+F2 gets an Alert on overload; item **J headless seam** (`run-graph --vault / --tasknotes /
+--run <sink>` — the CLI's explicit flag is the Run button's headless equivalent; the one
+`sinkRunButtonOnly` wording change) makes the Obsidian-triggered recompute (G's reverse path) real. Follow-up ask ("what about TaskNotes itself?") grew item F
 into six sub-items — the ranking is by what Bases formulas cannot do (dependency traversal,
 Monte Carlo, pivots), read via the API so field mapping stays the plugin's job.
 

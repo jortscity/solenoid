@@ -219,12 +219,19 @@ unlock, ranked by what Bases cannot do:
   the Track H pick; the feed ships without it. **Many projects at once:** Nest Join projects ×
   tasks → a cube, a composite in the **by-row** run mode runs H6 per nested frame → a cube of
   schedules, Cube Rollup for each project's finish; Decision Sensitivity's scenario cube is the
-  precedent for "one row per run, the result nested".
+  precedent for "one row per run, the result nested". **A Gantt in Obsidian for free:** H6's
+  `gantt` string output (the schedule as Mermaid `gantt` source) → the Mermaid node → a Report
+  `=gantt` ref → Write to Obsidian already emits the fence, and Obsidian renders it natively.
+  No figure code; the 2.0 canvas Gantt is a separate, later thing.
 - **F2 Capacity and deadline probability.** GROUPBY due-week of `timeEstimate` minus calendar
   hours (H7 Common free time takes the busy windows) → overload chart; estimates through the
   composite Monte Carlo run mode with a per-task spread → the probability of a date. The
   per-task spread is a column on the tasks frame (a user field, or actual ÷ estimate from F3
-  joined by project), not a literal per task.
+  joined by project), not a literal per task. An **Alert** node on the overload row count or
+  the deadline probability (`../subsystem-invariants.md` § Alert node) turns a vault edit,
+  via E, into a toast + HUD entry — the one "tracking-shaped" thing Solenoid does, and it's a
+  computed edge, not a task list. `timeEstimate` stays plain minutes (the unit lattice has no
+  time dimension; an FC formats it).
 - **F3 Time analytics and billing.** PIVOTBY week × project, Window running totals,
   actual ÷ estimate per project as a calibration table; join a rates frame → an invoice Report
   → Write to Obsidian (C into the client's note).
@@ -265,6 +272,19 @@ stranded cables through `dropStrandedFrontmatterCables`); (3) a per-node `vault`
 an imported note travels with the graph. Nothing else moves; `obsidian.test.ts` pins the
 disarmed-load rule for the writer, not this.
 
+**J. Headless seam** (what makes G's reverse path and the fixture tests real). A connection
+node fetches in the background through the Tauri bridges, so under `npm run run-graph` a Vault
+Folder or TaskNotes node emits nothing today. The readers' pure cores already take files /
+responses as data (`notesToTables(files)`, `taskNotesApi` over a fetch stub); the seam is a
+**file provider** the runner can supply: `run-graph <graph> --vault <path>` reads the vault
+with Node `fs` and hands each Vault Folder / Import Note its files; `--tasknotes <url>` does the
+same for the feed with Node `fetch`. Writers: `--run <node name>` arms and runs ONE named sink
+(B, C's Write to Obsidian, F6) — the CLI flag is the Run button's headless equivalent, named
+per node so nothing fires by accident; `sinkRunButtonOnly`'s wording gains that one clause.
+With J, a `tasknotes-workflows` step or an Obsidian "Shell commands" hotkey can run a graph
+and write its results back without a listener (G), and `vaultFrame.test.ts` runs the real
+node over `fixtures/vault/` instead of only the pure core.
+
 **Not doing.** `.canvas` export (`canvas-bases` already materializes Bases views; a Solenoid
 graph is computation, not a whiteboard). Writing `.base` view files (format in motion; a
 Bases view over B's written properties is one click in Obsidian anyway). mdbase views,
@@ -281,6 +301,7 @@ actions, CloudEvents, hosted Connect. Wikilink resolution inside Note bodies and
 | Write to Obsidian (+mode) | sink (exists) | `document` | — | + mode | `managedBlock.ts` · `managedBlock.test.ts` |
 | TaskNotes | connection · Connections | `from`, `to` (dates, Calendar provider only) | Tasks: `frame` + `cube`; Calendar: `frame`; Stats: scalars | provider, refreshMinutes | `taskNotesApi.ts` · `taskNotesApi.test.ts` (fixtures per endpoint) |
 | Write Tasks | sink · Connections | `cube` (frame widens) | `plan` frame | mode (create / update), keys | shares `taskNotesApi.ts`; list cells → the API's arrays |
+| (CLI) `run-graph --vault --tasknotes --run` | — | — | — | — | `scripts/run-graph.test.ts` gains a vault-fixture case and a `--run` case against a temp copy |
 
 Every write node: `enabled` stays out of the persistence whitelist (loads disarmed, the
 existing `WriteObsidianNode` pattern), status line + Preview, `socketDocs` say "wiring never
@@ -300,7 +321,8 @@ it stays the "vault as a source" demo.
 
 ## Rules touched (cite in commits)
 
-`sinkRunButtonOnly` (every writer), `noDataInComponents` (Preview is a pure plan over the
+`sinkRunButtonOnly` (every writer; amended by J to "the Run button, or the CLI's explicit
+`--run <name>`"), `noDataInComponents` (Preview is a pure plan over the
 cached frame + reads), `retypeReconciles` avoided by design (frame output), `onePrunePath`
 untouched (no per-key sockets), a new **`onePatchPath`** candidate (`frontmatterPatch.ts` is
 the only writer of a note's YAML; `obsidianWrite.ts` writes whole documents, never patches).
@@ -309,7 +331,7 @@ The fs allowlist change (`.yaml`/`.yml` read) is a one-line capability edit, doc
 
 ## Sequencing (dependency order)
 
-A → B → D → C → F (feed + F4/F3/F5 + F6) → I → E; F1 when H6 lands; G and H on hold. A alone is a
+A → B → D → C → F (feed + F4/F3/F5 + F6) → I → J → E; F1 when H6 lands; G and H on hold. A alone is a
 product ("your vault as a table"). A + B is the loop ("compute in Solenoid, see it in Bases").
 F is independent of B and C and could go first if the author's own use is task-shaped.
 
