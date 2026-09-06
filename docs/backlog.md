@@ -99,6 +99,14 @@ sections. Gate defaults below are the lead's picks unless the author overrules.
   date) default, schedule frame (Month · per-debt balance) the other. Currency unit carried. Seed
   "Debt payoff".
 
+## Canvas chrome (queued by the author 2026-09-07, "not top priority")
+
+- [ ] **Collapsed stadium pill hover preview** — a collapsed node's input pill shows a hover
+  preview listing EVERY cable item (name + value), not just the first. Author's extension to
+  consider with it: a special Conduit → bundled cable → Cube node (the bundle's lanes land as one
+  cube). Design first (DESIGN.md, `subsystem-invariants.md` § Conduit faces); stage after the
+  Obsidian track.
+
 ## Canvas annotation
 
 - [ ] **Drawn cables: nothing tows one.** A drawn arrow annotating a node stays put when that node
