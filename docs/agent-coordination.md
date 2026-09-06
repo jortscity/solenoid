@@ -15,5 +15,5 @@ Test lock: free
 ## Claims
 
 - Lead (solenoid-2c) — Write to Obsidian: chart ref rasterizes blank PNG; lambda ref exports as "[object Object]" (needs `$$` math). Files: obsidianMarkdown.ts, obsidianWrite.ts, canvasCapture.ts.
-- solenoid-be — Widget nodes C1 (backlog § Sources): Holidays (Nager.Date) next, then Time Zone Convert + World Clock, QR, FX. Weather + Geocode landed.
-- solenoid-fe — Table popup footer type-aware stats (backlog § Release planning, last item); then the docked-FC-in-drill-in recenter fix (backlog § Composites).
+- solenoid-be — Obsidian A (Vault Folder) + B (Write Properties: line patcher, plan/Preview/Run, mdbase validation) + D (both halves: Open in Obsidian, graph stub + solenoid: backlink) done & merged; C1 widget bundle shipped earlier. Idle — awaiting next (writeBase / E watcher clients open).
+- solenoid-fe — A′ + vault-as-a-table seed merged. Computed Column over a cube done (c74c61bf, awaiting merge; also fixed a latent A′ adopting-output default: cube→frame). Next: F1 "Kitchen remodel from TaskNotes" seed once it merges.
