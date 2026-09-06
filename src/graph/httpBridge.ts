@@ -69,20 +69,21 @@ export class CorsLikelyError extends Error {
   }
 }
 
-export async function fetchText(url: string): Promise<FetchedText> {
+export async function fetchText(url: string, init?: { headers?: Record<string, string> }): Promise<FetchedText> {
+  const extra = init?.headers ?? {};
   // Only ABSOLUTE urls may take the Tauri path: its Rust client has no base origin, so
   // a relative one (a bundled seed asset) fails there but resolves under plain fetch.
   const absolute = /^https?:\/\//i.test(url.trim());
   if (isDesktop() && absolute) {
     // Dynamic import so the browser bundle never pulls the Tauri plugin.
     const { fetch: tauriFetch } = await import("@tauri-apps/plugin-http");
-    const res = await tauriFetch(url, { headers: { "User-Agent": DATA_FETCH_UA } });
+    const res = await tauriFetch(url, { headers: { "User-Agent": DATA_FETCH_UA, ...extra } });
     if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`.trim());
     return { text: await readCappedText(res), contentType: res.headers.get("content-type") ?? "" };
   }
   let res: Response;
   try {
-    res = await fetch(url);
+    res = await fetch(url, Object.keys(extra).length ? { headers: extra } : undefined);
   } catch (e) {
     // On the web build a cross-origin block is a bare TypeError with no Response;
     // on desktop this path is same-origin only, so a TypeError there is not CORS.

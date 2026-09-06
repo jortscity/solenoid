@@ -1,0 +1,268 @@
+// TaskNotes (the Obsidian plugin) over its local HTTP API. URL builders + PARSERS are pure
+// and fixture-tested; the node owns the fetch, the paging loop and the cache. One fixture
+// per endpoint in taskNotesApi.test.ts. Field shapes follow the plugin's TaskInfo type.
+
+import { cubeFromColumns, type CubeValue, type CubeCell, type FrameValue, type FrameCell } from "./frame";
+import { parseDateToSerial, jsDateToSerial } from "./nodes/dateSerial";
+
+export const TASKNOTES_DEFAULT_URL = "http://localhost:8080";
+/** The apiKeyStore slot the bearer token lives in. */
+export const TASKNOTES_KEY_ID = "tasknotes";
+/** The API's page cap. */
+export const TASKS_PAGE = 200;
+
+export type TaskNotesProvider = "tasks" | "calendar" | "stats";
+
+export const TASKNOTES_PROVIDER_META = {
+  tasks:    { label: "Tasks",    description: "Every task as one row of a Cube: path, title, status, priority, due, scheduled, estimate, tracked minutes, archived, then projects, contexts, tags and blocked-by as lists, time entries and completed instances as nested tables, and each user field." },
+  calendar: { label: "Calendar", description: "Calendar events between two dates as a Frame: title, start, end, source." },
+  stats:    { label: "Stats",    description: "Task counts: total, completed, active, overdue, archived." },
+} satisfies Record<TaskNotesProvider, { label: string; description: string }>;
+
+function base(url: string): string {
+  const t = url.trim() || TASKNOTES_DEFAULT_URL;
+  return t.replace(/\/+$/, "");
+}
+
+export function tasksUrl(url: string, offset: number, limit = TASKS_PAGE): string {
+  return `${base(url)}/api/tasks?limit=${Math.max(1, Math.min(TASKS_PAGE, limit))}&offset=${Math.max(0, offset)}`;
+}
+
+export function eventsUrl(url: string, fromSerial: number, toSerial: number): string {
+  const p = new URLSearchParams({ start: serialToIsoDate(fromSerial) + "T00:00:00", end: serialToIsoDate(toSerial) + "T23:59:59" });
+  return `${base(url)}/api/calendars/events?${p.toString()}`;
+}
+
+export function statsUrl(url: string): string {
+  return `${base(url)}/api/stats`;
+}
+
+/** The request headers: a bearer token when one is set. */
+export function authHeaders(token: string): Record<string, string> {
+  const t = token.trim();
+  return t ? { Authorization: `Bearer ${t}` } : {};
+}
+
+// ─── Value parsing ────────────────────────────────────────────────────────────────
+
+/** A date (`YYYY-MM-DD`) or an ISO datetime → a serial; null for blank / unreadable. */
+export function isoToSerial(s: unknown): number | null {
+  if (typeof s !== "string" || !s.trim()) return null;
+  const t = s.trim();
+  if (/T/.test(t)) {
+    const ms = Date.parse(t);
+    return Number.isFinite(ms) ? jsDateToSerial(new Date(ms)) : null;
+  }
+  const n = parseDateToSerial(t);
+  return Number.isFinite(n) ? n : null;
+}
+
+function serialToIsoDate(serial: number): string {
+  const d = new Date(Math.round((serial - 25569) * 86400000));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+}
+
+/** `[[Name]]`, `[[folder/Name|alias]]`, `folder/Name.md` → `Name`. */
+export function linkName(s: unknown): string {
+  if (typeof s !== "string") return "";
+  let t = s.trim();
+  const m = /^\[\[([^\]]*)\]\]$/.exec(t);
+  if (m) t = m[1];
+  t = t.split("|")[0].split("#")[0];
+  t = t.split("/").pop() ?? t;
+  return t.replace(/\.md$/i, "").trim();
+}
+
+/** The API envelope: `{success, data}` or `{success:false, error}`. Throws the error text. */
+export function unwrap(text: string): unknown {
+  let json: unknown;
+  try { json = JSON.parse(text); } catch { throw new Error("TaskNotes: the reply was not JSON"); }
+  const env = json as { success?: boolean; data?: unknown; error?: unknown };
+  if (env && typeof env === "object" && "success" in env) {
+    if (env.success === false) throw new Error(`TaskNotes: ${String(env.error ?? "request failed")}`);
+    return env.data;
+  }
+  return json;
+}
+
+// ─── Tasks → cube ─────────────────────────────────────────────────────────────────
+
+export interface TaskRecord {
+  path: string;
+  title: string;
+  status: string | null;
+  priority: string | null;
+  due: number | null;
+  scheduled: number | null;
+  completed: number | null;
+  timeEstimate: number | null;
+  trackedMinutes: number | null;
+  archived: boolean;
+  projects: string[];
+  contexts: string[];
+  tags: string[];
+  blockedBy: string[];
+  timeEntries: FrameValue;
+  completeInstances: FrameValue;
+  created: number | null;
+  modified: number | null;
+  user: Record<string, CubeCell>;
+}
+
+const strList = (v: unknown, map: (s: unknown) => string = (s) => String(s ?? "").trim()): string[] =>
+  Array.isArray(v) ? v.map(map).filter(Boolean) : [];
+
+const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
+
+function timeEntriesFrame(entries: unknown): { frame: FrameValue; minutes: number | null } {
+  const rows = Array.isArray(entries) ? entries as Record<string, unknown>[] : [];
+  const start: FrameCell[] = [], end: FrameCell[] = [], minutes: FrameCell[] = [], desc: FrameCell[] = [];
+  let total: number | null = rows.length ? 0 : null;
+  for (const e of rows) {
+    const s = isoToSerial(e.startTime), f = isoToSerial(e.endTime);
+    const mins = s != null && f != null ? Math.round((f - s) * 1440) : num(e.duration);
+    start.push(s); end.push(f); minutes.push(mins); desc.push(typeof e.description === "string" ? e.description : null);
+    if (mins != null && total != null) total += mins;
+  }
+  return {
+    frame: { __frame: true, columns: [
+      { name: "Start", type: "date", values: start }, { name: "End", type: "date", values: end },
+      { name: "Minutes", type: "number", values: minutes }, { name: "Description", type: "string", values: desc },
+    ] },
+    minutes: total,
+  };
+}
+
+function instancesFrame(dates: unknown): FrameValue {
+  const vals: FrameCell[] = Array.isArray(dates) ? dates.map(isoToSerial) : [];
+  return { __frame: true, columns: [{ name: "Date", type: "date", values: vals }] };
+}
+
+/** A user (custom) field → a cube cell: scalars as typed, a list → a list cell, an object
+ *  → its JSON text (never a dropped key). */
+function userCell(v: unknown): CubeCell {
+  if (v == null) return null;
+  if (typeof v === "number" || typeof v === "boolean") return v;
+  if (typeof v === "string") {
+    const d = /^\d{4}-\d{2}-\d{2}(T|$)/.test(v) ? isoToSerial(v) : null;
+    return d ?? v;
+  }
+  if (Array.isArray(v)) return v.map((x) => userCell(x) as FrameCell);
+  return JSON.stringify(v);
+}
+
+const BUILT_IN = new Set([
+  "id", "path", "title", "status", "priority", "due", "scheduled", "completedDate", "timeEstimate", "timeEntries",
+  "totalTrackedTime", "archived", "projects", "contexts", "tags", "blockedBy", "complete_instances", "dateCreated",
+  "dateModified", "details", "customProperties", "basesData", "blocking", "isBlocked", "isBlocking", "hasSubtasks",
+  "sortOrder", "reminders", "attachments", "recurrence", "recurrence_anchor", "skipped_instances", "recurrence_parent",
+  "occurrence_date", "occurrence_materialization", "occurrence_next_trigger", "occurrence_template",
+  "occurrence_past_horizon", "occurrence_future_horizon", "icsEventId", "googleCalendarEventId",
+  "googleCalendarExceptionEventId", "googleCalendarExceptionOriginalScheduled", "googleCalendarMovedOriginalDates",
+]);
+
+export function taskRecord(raw: Record<string, unknown>): TaskRecord {
+  const te = timeEntriesFrame(raw.timeEntries);
+  const user: Record<string, CubeCell> = {};
+  const custom = raw.customProperties;
+  if (custom && typeof custom === "object") for (const [k, v] of Object.entries(custom as Record<string, unknown>)) user[k] = userCell(v);
+  for (const [k, v] of Object.entries(raw)) if (!BUILT_IN.has(k) && !(k in user)) user[k] = userCell(v);
+  const blocked = Array.isArray(raw.blockedBy)
+    ? (raw.blockedBy as unknown[]).map((d) => linkName(typeof d === "object" && d ? (d as { uid?: unknown }).uid : d)).filter(Boolean)
+    : [];
+  return {
+    path: String(raw.path ?? raw.id ?? ""),
+    title: String(raw.title ?? ""),
+    status: typeof raw.status === "string" ? raw.status : null,
+    priority: typeof raw.priority === "string" ? raw.priority : null,
+    due: isoToSerial(raw.due),
+    scheduled: isoToSerial(raw.scheduled),
+    completed: isoToSerial(raw.completedDate),
+    timeEstimate: num(raw.timeEstimate),
+    trackedMinutes: num(raw.totalTrackedTime) ?? te.minutes,
+    archived: raw.archived === true,
+    projects: strList(raw.projects, linkName),
+    contexts: strList(raw.contexts),
+    tags: strList(raw.tags),
+    blockedBy: blocked,
+    timeEntries: te.frame,
+    completeInstances: instancesFrame(raw.complete_instances),
+    created: isoToSerial(raw.dateCreated),
+    modified: isoToSerial(raw.dateModified),
+    user,
+  };
+}
+
+export interface TasksPage {
+  tasks: TaskRecord[];
+  total: number | null;
+  hasMore: boolean;
+  nextOffset: number;
+}
+
+/** One `GET /api/tasks` page. */
+export function parseTasksPage(text: string, offset: number): TasksPage {
+  const data = unwrap(text) as { tasks?: unknown; pagination?: { total?: unknown; hasMore?: unknown; limit?: unknown } } | null;
+  const list = Array.isArray(data?.tasks) ? data!.tasks as Record<string, unknown>[] : [];
+  const tasks = list.map(taskRecord);
+  const pg = data?.pagination;
+  const total = num(pg?.total);
+  const hasMore = pg?.hasMore === true || (total != null && offset + tasks.length < total);
+  return { tasks, total, hasMore: hasMore && tasks.length > 0, nextOffset: offset + tasks.length };
+}
+
+/** The Tasks cube: built-ins first, then every user field in first-seen order. */
+export function tasksToCube(tasks: readonly TaskRecord[]): CubeValue {
+  const col = (name: string, cells: CubeCell[], type?: FrameValue["columns"][number]["type"]) => ({ name, cells, ...(type ? { type } : {}) });
+  const userKeys: string[] = [];
+  for (const t of tasks) for (const k of Object.keys(t.user)) if (!userKeys.includes(k)) userKeys.push(k);
+  return cubeFromColumns([
+    col("path", tasks.map((t) => t.path), "string"),
+    col("title", tasks.map((t) => t.title), "string"),
+    col("status", tasks.map((t) => t.status), "string"),
+    col("priority", tasks.map((t) => t.priority), "string"),
+    col("due", tasks.map((t) => t.due), "date"),
+    col("scheduled", tasks.map((t) => t.scheduled), "date"),
+    col("completed", tasks.map((t) => t.completed), "date"),
+    col("timeEstimate", tasks.map((t) => t.timeEstimate), "number"),
+    col("trackedMinutes", tasks.map((t) => t.trackedMinutes), "number"),
+    col("archived", tasks.map((t) => t.archived), "logical"),
+    col("projects", tasks.map((t) => t.projects as CubeCell)),
+    col("contexts", tasks.map((t) => t.contexts as CubeCell)),
+    col("tags", tasks.map((t) => t.tags as CubeCell)),
+    col("blockedBy", tasks.map((t) => t.blockedBy as CubeCell)),
+    col("timeEntries", tasks.map((t) => t.timeEntries)),
+    col("complete_instances", tasks.map((t) => t.completeInstances)),
+    col("created", tasks.map((t) => t.created), "date"),
+    col("modified", tasks.map((t) => t.modified), "date"),
+    ...userKeys.map((k) => col(k, tasks.map((t) => (k in t.user ? t.user[k] : null)))),
+  ]);
+}
+
+// ─── Calendar events → frame ──────────────────────────────────────────────────────
+
+export function parseEvents(text: string): FrameValue {
+  const data = unwrap(text) as { events?: unknown } | unknown[] | null;
+  const list = Array.isArray(data) ? data : Array.isArray((data as { events?: unknown })?.events) ? (data as { events: unknown[] }).events : [];
+  const title: FrameCell[] = [], start: FrameCell[] = [], end: FrameCell[] = [], source: FrameCell[] = [];
+  for (const raw of list as Record<string, unknown>[]) {
+    title.push(String(raw.title ?? raw.summary ?? ""));
+    start.push(isoToSerial(raw.start ?? raw.startTime));
+    end.push(isoToSerial(raw.end ?? raw.endTime));
+    const src = raw.source ?? raw.provider ?? raw.calendar ?? raw.subscription;
+    source.push(src == null ? null : String(src));
+  }
+  return { __frame: true, columns: [
+    { name: "Title", type: "string", values: title }, { name: "Start", type: "date", values: start },
+    { name: "End", type: "date", values: end }, { name: "Source", type: "string", values: source },
+  ] };
+}
+
+// ─── Stats → scalars ──────────────────────────────────────────────────────────────
+
+export interface TaskStats { total: number | null; completed: number | null; active: number | null; overdue: number | null; archived: number | null }
+
+export function parseStats(text: string): TaskStats {
+  const d = (unwrap(text) ?? {}) as Record<string, unknown>;
+  return { total: num(d.total), completed: num(d.completed), active: num(d.active), overdue: num(d.overdue), archived: num(d.archived) };
+}
