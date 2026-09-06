@@ -727,7 +727,7 @@ export function TaskNotesComponent({ data, emit }: NodeProps<TaskNotesNodeType>)
           className="sol-conn__url"
           type="password"
           value={token}
-          placeholder="API token (if the plugin sets one)"
+          placeholder="API token"
           spellCheck={false}
           autoComplete="off"
           onChange={(e) => setToken(e.target.value)}
