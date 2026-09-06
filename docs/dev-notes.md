@@ -76,7 +76,18 @@ OTHER popup input editors, and a List Input editor for coherency): `CubeInputNod
 as an editor bound to a records path (`cubeEditCell.tsx`, `literalEditors.ts`), List Input's chip
 → the table popup as one raw column; the invariant is `subsystem-invariants.md` § Literal input
 editors. The Remodel seed's tasks are now a Cube Input and its critical-path Filter is back (A′).
-Open: D's stub note (needs B's `frontmatterPatch`).
+D's stub note + `solenoid:` link landed (be, 10a9f4c5); be is on mdbase validation for B; fe on
+the computed column over a cube (then the F1 seed). Lead: **Track H** — the `team-hours` seed
+(Allocator copy loosened to "range"), **H3 Group Cost Settle** + the `trip-split` seed. Open in
+Track H: H1 Payoff Planner. **Vault Folder eyeball checklist** (be, for
+the author, Settings ▸ Obsidian → `demo-vault/`): add a Vault Folder → the vault chip defaults from
+the setting; blank folder → Refresh → column preview lists path/name/folder/ext/size/created/
+modified/tags/links/embeds/date then frontmatter keys; folder = Projects → typed columns (mdbase:
+priority number, due date, tags list, milestones nested); folder = Notes → "Deep Work" rating
+number, read checkbox, dates (types.json); folder = Daily → the date column from file names, sleep/
+weight numeric (R3); glob `2026-09-0*` narrows; Include body ON adds `body`; created/modified are
+real dates; auto-refresh 1 min + manual Refresh work; on web / no vault: the desktop-only hint, no
+red.
 Also: fetcher cards name their data source; the remodel seed is Remodel (Gantt) fed by a
 Holidays node; `yaml` (mdbase schemas) + `qrcode` deps added on the author's word; CUMIPMT /
 CUMPRINC sign bug fixed with D2 (author: no op-picker exception). Queued by the author: collapsed

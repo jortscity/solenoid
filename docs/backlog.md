@@ -72,19 +72,25 @@ elkjs-vs-rete-auto-arrange peer conflict left with the plugin.
 
 The bundle `v2.0/24-obsidian-vault.md` is promoted to the flagship track; its § Defaults are the
 build rules and § Sequencing the order (A′ → A → B → D → C → F → I → J → E). Every item ships
-verified in the desktop app against the demo vault.
+verified in the desktop app against the demo vault. Landed ledger: the bundle's § What stands today.
+
+- [ ] **D second half** (be): the graph stub note `Solenoid/<doc>.md` + the `solenoid:` wikilink
+  patched onto notes Write to Obsidian writes (`stamp` on for whole-document writes only).
+- [ ] **B follow-ups** (be): mdbase validation on write (refuse a row violating type / enum / min /
+  max / required); `writeBase` (the live `.base` view) deferred.
+- [ ] **Computed column over a cube** (fe) — Add Column / Computed Column are frame-only after A′; the
+  F1 "Kitchen remodel from TaskNotes" seed needs Duration = `timeEstimate` ÷ hours-per-day on the
+  tasks cube before Schedule. Then F1; F2 / F3 / F5 are seeds over the feed (no code).
+- [ ] **Author's desktop eyeball** of the flagship cards against `demo-vault/` (Settings ▸ Obsidian
+  → the repo's demo-vault): Vault Folder (be's ten-step checklist in the 09-07 digest), Write
+  Properties Preview/Run on a copy, TaskNotes with the plugin's API on, Write to Obsidian block mode
+  + `{{daily}}`, the Cube Input editor's three drill targets.
 
 ## Track H — Allocator-family nodes (author 2026-09-06: in)
 
 Each ships WITH a seed baked via `scripts/tune-seeds.mjs`; specs are the `1.4-plan.md` § Track H
 sections. Gate defaults below are the lead's picks unless the author overrules.
 
-- [ ] **H3 Group Cost Settle** — people frame (Paid, optional Share) → transfers frame (From · To ·
-  Amount) + per-person Net; greedy biggest-creditor-to-biggest-debtor. Default: equal split (Share
-  weights when present). Seed "Trip split".
-- [ ] **Hours-balancing seed on the Allocator** ("Balance a team's hours": people Min · Max · Weight,
-  the Allocator with `h` on Min, a Display of Share as %) + loosen the Allocator's socket copy from
-  "price range" to "range". Zero code beyond copy.
 - [ ] **H1 Payoff Planner** — debts frame (Balance, APR, Min payment) + `extra`; Avalanche |
   Snowball; monthly cascade, closed-form. Output mode: summary (Debt · Months · Interest · Payoff
   date) default, schedule frame (Month · per-debt balance) the other. Currency unit carried. Seed
