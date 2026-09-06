@@ -8,6 +8,7 @@ import type {
   DataFeedNode as DataFeedNodeType,
   GeocodeNode as GeocodeNodeType,
   WeatherNode as WeatherNodeType,
+  HolidaysNode as HolidaysNodeType,
 } from "../rete-nodes";
 import { processGraph } from "../process";
 import { connectionStore, refreshConnection, type ConnectionState } from "../connectionStore";
@@ -25,6 +26,7 @@ import "./ConnectionNodes.css";
 import { stopDragStart } from "../coarse";
 import { nodeDisplayName } from "../catalogUtils";
 import { pickGeocodeMatch } from "../geocodeProvider";
+import { NAGER_COUNTRIES, filterHolidays, daysToNextHoliday } from "../holidaysProvider";
 import { frameRowCount } from "../frame";
 
 function statusText(s: ConnectionState): string {
@@ -507,6 +509,91 @@ export function WeatherComponent({ data, emit }: NodeProps<WeatherNodeType>) {
           { key: "temp",      label: `NOW °${data.unit}`, value: data.cached?.nowTemp ?? null },
           { key: "condition", label: "CONDITION",         value: data.cached?.nowCondition || null },
         ]}
+      />
+    </NodeShell>
+  );
+}
+
+// ─── HOLIDAYS ──────────────────────────────────────────────────────────────────────
+// A country + year → the year's public holidays. Country is a card dropdown; the year
+// and optional region commit on blur/Enter. The Dates output feeds NETWORKDAYS / WORKDAY.
+function todaySerial(): number {
+  const d = new Date();
+  return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000 + 25569;
+}
+
+export function HolidaysComponent({ data, emit }: NodeProps<HolidaysNodeType>) {
+  useSyncExternalStore(connectionStore.subscribe, connectionStore.version); // fill the rows when a fetch lands
+  const [year, setYear] = useState(data.year ? String(data.year) : "");
+  const [region, setRegion] = useState(data.region);
+  const [minutes, setMinutes] = useState(data.refreshMinutes);
+  useEffect(() => { setRegion(data.region); }, [data.region]);
+  useAutoRefresh(data.id, minutes);
+
+  function commitYear() {
+    const n = Math.max(0, Math.round(Number(year) || 0));
+    setYear(n ? String(n) : "");
+    if (n !== data.year) { data.year = n; void processGraph(); }
+  }
+  function commitRegion() {
+    const next = region.trim();
+    setRegion(next);
+    if (next !== data.region) { data.region = next; void processGraph(); }
+  }
+
+  const applicable = filterHolidays(data.cached ?? [], data.region);
+  const count = applicable.length;
+  const next = daysToNextHoliday(applicable, todaySerial());
+  const frame = data.outputs.frame;
+  const dates = data.outputs.dates;
+
+  return (
+    <NodeShell node={data} emit={emit} hideOutputSockets>
+      <div className="sol-conn">
+        <LazySelect
+          className="sol-conn__select"
+          value={data.country}
+          title="Country"
+          onChange={(e) => { data.country = e.target.value; void processGraph(); }}
+        >
+          <option value="">Pick a country…</option>
+          {NAGER_COUNTRIES.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
+        </LazySelect>
+        <label className="sol-conn__field">
+          Year
+          <input
+            className="sol-conn__num" type="number" value={year} placeholder="This year"
+            onChange={(e) => setYear(e.target.value)} onBlur={commitYear}
+            onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+            onPointerDown={stopDragStart} onMouseDown={(e) => e.stopPropagation()}
+          />
+        </label>
+        <input
+          className="sol-conn__url" type="text" value={region} placeholder="Region, for example US-CA (optional)"
+          spellCheck={false}
+          onChange={(e) => setRegion(e.target.value)} onBlur={commitRegion}
+          onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+          onPointerDown={stopDragStart} onMouseDown={(e) => e.stopPropagation()}
+        />
+        <ConnectionStatusRow nodeId={data.id} onRefresh={() => void refreshConnection(data.id)} />
+        <RefreshIntervalField minutes={minutes} onCommit={(n) => { data.refreshMinutes = n; setMinutes(n); }} />
+      </div>
+      {frame && (
+        <MeasuredSocketRow side="output" socketKey="frame" nodeId={data.id} emit={emit} payload={frame.socket}>
+          <span className="solenoid-node__io-label">HOLIDAYS</span>
+          <span className="solenoid-node__output-value">{count > 0 ? `${count} days` : "—"}</span>
+        </MeasuredSocketRow>
+      )}
+      {dates && (
+        <MeasuredSocketRow side="output" socketKey="dates" nodeId={data.id} emit={emit} payload={dates.socket}>
+          <span className="solenoid-node__io-label">DATES</span>
+          <span className="solenoid-node__output-value">{count > 0 ? `${count} dates` : "—"}</span>
+        </MeasuredSocketRow>
+      )}
+      <InlineOutputRows
+        node={data}
+        emit={emit}
+        rows={[{ key: "next", label: "DAYS TO NEXT", value: next }]}
       />
     </NodeShell>
   );

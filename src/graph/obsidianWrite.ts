@@ -4,14 +4,16 @@
 import {
   isDesktop, joinPath, ensureDir, writeTextFilePath, writeBinaryFilePath,
 } from "./fileBridge";
-import { getView } from "./process";
-import { serializeSvgWithComputedStyles } from "./canvasCapture";
+import { nodeChartSvg, serializeSvgWithComputedStyles } from "./canvasCapture";
 import { dataUrlToBytes, sanitizeName } from "./imageAssets";
 import { assembleDocumentMarkdown, valueToObsidianBlock } from "./obsidianMarkdown";
 import { isImageValue, type ImageValue } from "./imageValue";
 import { type DocumentValue } from "./documentValue";
 
 const EXT_MIME: Record<string, string> = { png: "image/png", jpeg: "image/jpeg", jpg: "image/jpeg", gif: "image/gif", webp: "image/webp", svg: "image/svg+xml" };
+
+/** The narrowest PNG worth embedding in a note. */
+const MIN_RASTER_W = 640;
 
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -22,8 +24,9 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-/** Rasterize a live `<svg>` to PNG bytes at 2×, baking computed styles in first —
- *  the vault has none of our CSS. Null if the SVG is too small or the raster fails. */
+/** Rasterize a live `<svg>` to PNG bytes, baking computed styles in first — the vault
+ *  has none of our CSS. The inline card chart is small, so the raster scales it up to a
+ *  note-sized width (vector all the way). Null if the SVG is too small or the raster fails. */
 async function rasterizeSvg(svgEl: SVGSVGElement): Promise<Uint8Array | null> {
   const box = svgEl.getBoundingClientRect();
   const w = Math.max(1, Math.round(box.width));
@@ -43,7 +46,7 @@ async function rasterizeSvg(svgEl: SVGSVGElement): Promise<Uint8Array | null> {
   const url = URL.createObjectURL(blob);
   try {
     const img = await loadImage(url);
-    const scale = 2;
+    const scale = Math.min(4, Math.max(2, MIN_RASTER_W / w));
     const canvas = document.createElement("canvas");
     canvas.width = w * scale;
     canvas.height = h * scale;
@@ -57,22 +60,6 @@ async function rasterizeSvg(svgEl: SVGSVGElement): Promise<Uint8Array | null> {
   } finally {
     URL.revokeObjectURL(url);
   }
-}
-
-/** The live `<svg>` element of a node (its main chart art, not a socket glyph). */
-function nodeChartSvg(nodeId: string): SVGSVGElement | null {
-  const el = getView()?.nodeElement(nodeId);
-  if (!el) return null;
-  const svgs = Array.from(el.querySelectorAll("svg"));
-  // The chart is the node's biggest SVG; glyphs are ~≤20px.
-  let best: SVGSVGElement | null = null;
-  let bestView = 40 * 40; // ignore anything glyph-sized
-  for (const s of svgs) {
-    const b = s.getBoundingClientRect();
-    const a = b.width * b.height;
-    if (a > bestView) { bestView = a; best = s as SVGSVGElement; }
-  }
-  return best;
 }
 
 export interface WriteVaultOptions {

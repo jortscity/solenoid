@@ -4,14 +4,16 @@ Shared scratchpad for when several agents work this repo in parallel. Dormant in
 
 **Protocol.** Agents message each other directly for live coordination; this board is only the durable claim list (one line per claim, delete on land) so a late-joining or restarted agent knows what's taken. Agent 1 is Lead. The durable role split, shared-file policy, and commit/push rules live in the agent's memory.
 
-**Session 2026-09-04c (author remote, on a phone).** A1 = Han Solo (Lead) = `solenoid-9e`. Friends: Chewie = `solenoid-36`, Lando = `solenoid-87`. All three run a 20-min cron wake. Message directly via SendMessage; this board is the durable record only. Worktrees: Chewie works in `../solenoid-chewie` (branch `chewie`), Lando in `../solenoid-lando` (branch `lando`), both cut from develop; each commits freely to its own branch and messages Han a hash when green (tsc + vitest); Han merges into `develop` and pushes only when the author's eyeball is needed. Only Han touches the main checkout and this board.
+**Session 2026-09-06 (author present, desktop app).** A1 = Lead = `solenoid-2c` (main checkout, `develop`). Peers: `solenoid-be`, `solenoid-fe`, each in its own worktree (`.claude/worktrees/be` on branch `be`, `.claude/worktrees/fe` on branch `fe`, cut from develop); commit freely there, message the Lead a hash when green; the Lead merges into `develop`. Nobody pushes.
+
+**Test lock (one `tsc` / `vitest` run at a time — a second run crashes the author's machine).** Before running either, edit the line below to your name; run; set it back to `free`. If it is held, do something else and retry — never run alongside the holder.
+
+Test lock: free
 
 (The repo-local `/continue` command was deleted 2026-09-01 by the author — it duplicated a generic. Board sync is by reading this file.)
 
 ## Claims
 
-- Chewie — D2 payment breakdown ONE card (backlog § Finance). B4 column picker (75c7ea2b) merged. Display expand, finance review, A3 hover peek, FC inherit review (6960fc0b) LANDED, merged.
-- Lando — C1 widget nodes: Weather (building), then Holidays, TZ/QR, FX. Geocode (8e07b060) merged. E2 LANDED (8c9c6f11), merged. FC inherit pick + F5 findings LANDED, merged.
-- Han — lead; merges; walking the 1.4 cut with the author one item per turn (Tracks A–C settled; D2/D7-trig in, D4 incremental, D8 deferred; at D9).
-
-**Awaiting the author's eyeball:** three finance cards (Finance > Other / Bonds), the FC `—` inherit pick, the Display corner expand on frames/tables/lists, the socket hover peek (A3), the mobile delete button inside a drill-in (E2), the Record List view / cardsize / #title / clamp (B1) + the four new record-cards seed exhibits, the Quarter `start` / Age / Nth Weekday presets (C5), the text-cell suggestions in the table popup (B2.1), the popup's frozen-header toggle + record arrow keys (B3), the Chip style on the FC + popup column row (B2.2), the foreign-document network gate + Allow notice (C2), the Geocode node (C1), the column picker on Sort / Get Column / Join (B4); from earlier: the anydata hollow-square glyph + Socket Legend row; the catalog description sweep (8d5c8f74); Merge Plots figure + expand button; Vite 8 (desktop `tauri build` ride-along result per A3's last message).
+- Lead (solenoid-2c) — Write to Obsidian: chart ref rasterizes blank PNG; lambda ref exports as "[object Object]" (needs `$$` math). Files: obsidianMarkdown.ts, obsidianWrite.ts, canvasCapture.ts.
+- solenoid-be — Widget nodes C1 (backlog § Sources): Holidays (Nager.Date) next, then Time Zone Convert + World Clock, QR, FX. Weather + Geocode landed.
+- solenoid-fe — Table popup footer type-aware stats (backlog § Release planning, last item); then the docked-FC-in-drill-in recenter fix (backlog § Composites).

@@ -94,23 +94,36 @@ export function serializeSvgWithComputedStyles(svgEl: SVGSVGElement): string {
   return clone.outerHTML;
 }
 
-/** Every currently-rendered visual-node `<svg>` as self-contained markup with its
+/** A node's chart `<svg>` — its largest SVG that isn't card chrome (the frame
+ *  overlays are the biggest SVGs on every card and paint nothing off-canvas) or
+ *  glyph-sized furniture. Null when the node isn't on the live canvas or draws no chart. */
+export function nodeChartSvg(nodeId: string): SVGSVGElement | null {
+  const el = getView()?.nodeElement(nodeId);
+  if (!el) return null;
+  let best: SVGSVGElement | null = null;
+  let bestArea = 40 * 40;
+  for (const svg of Array.from(el.querySelectorAll("svg"))) {
+    if (svg.classList.contains("solenoid-node__frame")) continue;
+    const box = svg.getBoundingClientRect();
+    const area = box.width * box.height;
+    if (area > bestArea) { bestArea = area; best = svg; }
+  }
+  return best;
+}
+
+/** Every currently-rendered chart node's `<svg>` as self-contained markup with its
  *  node's display name; `includeNodeIds` narrows to the report-referenced set. */
 export function captureChartSvgs(
   names: Map<string, string>,
   includeNodeIds?: ReadonlySet<string>,
 ): { name: string; svg: string }[] {
-  const view = getView();
   const editor = getEditor();
-  if (!view || !editor) return [];
+  if (!editor) return [];
   const out: { name: string; svg: string }[] = [];
   for (const { id } of editor.getNodes()) {
     if (includeNodeIds && !includeNodeIds.has(id)) continue;
-    const svgEl = view.nodeElement(id)?.querySelector("svg");
+    const svgEl = nodeChartSvg(id);
     if (!svgEl) continue;
-    // Skip icon-sized furniture — a chart SVG is always the node's main content.
-    const box = svgEl.getBoundingClientRect();
-    if (box.width < 40 || box.height < 40) continue;
     out.push({ name: names.get(id) ?? "Chart", svg: serializeSvgWithComputedStyles(svgEl) });
   }
   return out;
