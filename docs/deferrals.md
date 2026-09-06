@@ -83,9 +83,9 @@ and its entry deleted. Ruled-out-forever ideas: `out-of-scope.md`; settled ratio
   the held result is seed-based; distinguishing needs a drill-state signal in the compute
   layer (couples `data()` to `compositeEditorStore`). Left simple on purpose; revisit only
   if it reads as misleading (1.4's A0 badge vocabulary is where a "held" state would go).
-- **Obsidian follow-ups (if wanted)**: auto-reload an imported note on file change (the
-  Stage-0 file watcher in `v2.0/21-collaboration.md` would give this for free); write config
-  for `![[Note]]` transclusion vs inlining an embedded note's body.
+- **Obsidian follow-ups**: auto-reload on file change and the `![[Note]]` transclusion-vs-
+  inline write switch are items E and "Not doing" of `v2.0/24-obsidian-vault.md` (the vault
+  bundle); they stay parked until that bundle gets an author pick.
 - **Group-by-into-nesting / a top-edge "grid" Build Cube** — considered-and-dropped ideas
   the cube doc keeps on the table; add only on demand.
 - **Two-axis board (swimlanes)** — Airtable's kanban lacks it; a differentiator if the board

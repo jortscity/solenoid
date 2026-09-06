@@ -6,6 +6,20 @@ sessions sweep verbatim to `archive/dev-notes-history.md` — read a digest here
 first; drill into the archive (or `git log`) only for the mechanics of a
 specific item.
 
+### SESSION DIGEST (2026-09-06 — Obsidian vault bundle, docs only)
+
+Author ask: a tighter Obsidian integration, not a plugin, then "explore TaskNotes and mdbase by
+the same developer". Outcome is one proposal bundle, `v2.0/24-obsidian-vault.md` (Arc 9 in
+`2.0-plan.md`; row in `v2.0/README.md`); no code. The reading: the author's ecosystem
+(TaskNotes 5.0-beta, the mdbase v0.3 spec + native `mdbase` binary + `mdbase-obsidian`) is
+converging on typed markdown collections whose query execution is deliberately left to companion
+tools — Solenoid is that companion. Keystone item is a Vault Folder → Frame connection node
+(columns typed from mdbase `_types` when present), then Write Properties with a dry run.
+Constraints found on the way and recorded in the bundle: the desktop fs allowlist is by
+EXTENSION (`.md/.json/.csv` only), the vault root is an app-wide setting so graphs don't travel,
+the Import node is a NoteNode not a connection node, ISO datetimes in frontmatter land as strings.
+`deferrals.md`'s Obsidian follow-ups now point at the bundle. Four author calls are listed in it.
+
 ### SESSION DIGEST (2026-09-05 — free-drawn cables)
 
 **Drawn cables landed** (author-ordered): free-drawn annotation curves, point by point, through
