@@ -65,7 +65,7 @@ export function ListInputComponent({ data, emit }: NodeProps<ListInputNodeType>)
   const rows = Object.keys(data.inputs).map((k) => data.stringLiterals[k] ?? "");
   const popupOverrides = {
     title: data.label || "List Input",
-    data: rows.map((r) => [r]),
+    data: rows.length ? rows.map((r) => [r]) : [[""]],
     headers: [data.label || "List"],
     cellType: dt,
     list: false,
