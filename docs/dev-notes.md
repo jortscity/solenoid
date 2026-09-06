@@ -64,7 +64,14 @@ additions ("anything else?"): the provenance stamp is a WIKILINK to a graph stub
 (`Solenoid/<doc>.md`) so backlinks answer "which graph wrote this"; B registers a new key's type
 in `.obsidian/types.json` and writes note references as `[[links]]`; Write to Obsidian gets a
 `{{today}}` file-name template for daily notes; "graphs as notes" (text form in the vault) is
-item K, HOLD until the save-format freeze. Follow-up ask ("what about TaskNotes itself?") grew item F
+item K, HOLD until the save-format freeze. **Relative dates** (author ask, incl. `{{today}}`): section R —
+built ON `relativeDatesOptIn`, not against it. Obsidian's `{{date:FORMAT}}` is the template
+grammar (offsets `+7d` are ours), resolved against a writer's optional `date` input or the
+wall clock at Run; `{{daily}}` reads `.obsidian/daily-notes.json`; Vault Folder parses a `date`
+built-in out of daily-note names (journaling as a time series); "next 7 days" is `TODAY()+7` in
+an Expression, Filter's value stays literal; a midnight timer calls `requestRecalc()` so an open
+dashboard rolls the day and the existing "day moved" Alert fires; B bumps `dateModified` /
+mdbase `updated` when a note has one. Follow-up ask ("what about TaskNotes itself?") grew item F
 into six sub-items — the ranking is by what Bases formulas cannot do (dependency traversal,
 Monte Carlo, pivots), read via the API so field mapping stays the plugin's job.
 

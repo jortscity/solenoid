@@ -215,9 +215,9 @@ The same rule applies to `frameToMarkdownTable` in Write to Obsidian. Pure core:
 that edits a note's YAML (a `onePatchPath` rule candidate).
 
 **C. Managed block write mode** on Write to Obsidian: `mode: overwrite | append | block`, and
-a **templated file name**: `{{today}}` (the daily-note pattern, `YYYY-MM-DD` — configurable
-format literal), `{{name}}` (the node's addressable name), `{{doc}}` — so "append this run's
-summary to today's daily note" is `mode: append`, file `{{today}}`, subfolder `Daily`.
+a **templated file name and subfolder** in the grammar of § R (`{{date}}`, `{{daily}}`,
+`{{name}}`, `{{doc}}`) — so "append this run's summary to today's daily note" is `mode:
+append`, file `{{daily}}`.
 `block` splices the assembled markdown between `%% solenoid:begin <node name> %%` and
 `%% solenoid:end %%` (Obsidian hides `%%` comments in reading view; the node's addressable
 name keys the pair, so two Write nodes can own two blocks in one note). First write appends
@@ -343,6 +343,56 @@ stranded cables through `dropStrandedFrontmatterCables`); (3) a per-node `vault`
 an imported note travels with the graph. Nothing else moves; `obsidian.test.ts` pins the
 disarmed-load rule for the writer, not this.
 
+**R. Relative dates — one grammar, on top of `relativeDatesOptIn`** (author ask 2026-09-06:
+"tighter relative date integration, including `{{today}}`"). The ruling stands
+(`../decisions.md` relativeDatesOptIn): a STORED date is a fixed calendar day; a relative
+phrase resolves only on a Date Input under Settings ▸ Data ▸ Relative dates, re-resolving
+every pass with an Alert when the day moves. Nothing below stores a relative date, so
+nothing below reopens it.
+
+- **R1 The template grammar is Obsidian's.** Write to Obsidian's file name / subfolder, and
+  any text a writer emits, resolve `{{date}}`, `{{date:FORMAT}}` (Obsidian's own daily-note
+  and template token, so a user's format string pastes in unchanged; the tokens are Solenoid's
+  `formatDateSerial` set, a moment subset that covers every daily-note format in practice),
+  an **offset** `{{date+7d}}` / `{{date-1w}}` / `{{date+1m:YYYY-MM}}` (d/w/m/y — Solenoid's
+  extension, resolved with the existing serial arithmetic), plus `{{name}}` (the node's
+  addressable name) and `{{doc}}`. `{{today}}` is an alias of `{{date}}`, nothing more. The
+  date it resolves against: the writer's **optional `date` input socket** when wired (a Date
+  Input, `TODAY()+7` from an Expression, a column value in a by-row composite — deterministic,
+  the graph's own value), else the wall clock at Run time. A file NAME is not a stored date,
+  and Run is an explicit act, so the wall-clock fallback stays within the ruling. Pure
+  `nameTemplate.ts` (`resolveTemplate(text, ctx: {date, name, doc, daily})`), tested against
+  fixed serials.
+- **R2 `{{daily}}` knows the vault's daily-note settings.** `.obsidian/daily-notes.json`
+  holds the Daily notes core plugin's `folder` and `format`; `{{daily}}` resolves to the
+  configured path of the day's note (`Daily/2026-09-06`), `{{daily+1d}}` to tomorrow's, so
+  "append to today's daily note" needs no format or folder typed twice. Missing file → the
+  defaults (vault root, `YYYY-MM-DD`). Periodic Notes (weekly / monthly, a community plugin,
+  `.obsidian/plugins/periodic-notes/data.json`) is the v2 sibling: `{{weekly}}`, `{{monthly}}`.
+- **R3 Vault Folder reads the date OUT of the file name.** A `nameFormat` init (defaults to
+  the daily-notes `format` when `folder` is the daily-notes folder, else empty) parses each
+  `name` into a **`date` built-in** (null when the name doesn't match). That is the journaling
+  use case in one node: daily notes carrying `mood · sleep · weight · exercised` properties
+  become a time series — Window running averages, streaks (Window lag over `date`), GROUPBY
+  week, a heatmap — with `date` a real serial column, not `name` re-parsed by hand.
+- **R4 "Due in the next 7 days" needs no new syntax.** Two routes exist today: an Expression
+  `TODAY()+7` wired into Filter's value (deterministic per pass, no opt-in — the Excel way),
+  or a Date Input reading `in 7 days` under the relative-dates setting (which is what the
+  ruling is for). Filter's own value field stays literal; making it accept relative text is
+  exactly the "opt-in moves to the parser call sites" reopening the ruling names, and the
+  Expression route makes it unnecessary.
+- **R5 The day rolls over by itself.** A dashboard left open over midnight should not show
+  yesterday's "due today". One timer to the next local midnight calls `requestRecalc()` (the
+  F9 path, `process.ts` recalc generation) — TODAY / NOW recompute, relative Date Inputs
+  re-resolve and fire their existing "day moved" Alert, and E's watcher has its temporal twin.
+  Armed only while the document contains a TODAY / NOW / relative Date Input (a `volatileDates`
+  scan at load and on topology change); off otherwise, so an ordinary document never ticks.
+  One recompute per day; no setting.
+- **R6 Writers respect the note's own timestamps.** When B patches a note that carries a
+  `dateModified` (TaskNotes) or an mdbase lifecycle `updated` field, it sets it to now in that
+  field's existing form (ISO datetime) — the plugin's records stay honest about being touched;
+  a note without such a field gets none added. F6 needs nothing: the API does it.
+
 **K. Graphs as notes (HOLD — the one idea past this bundle's line).** The text form
 (`textForm.ts`) is line-oriented and byte-stable; a Solenoid document could live IN the vault
 as `Solenoid/<name>.md` with the text form in a fenced block and the visual sidecar in a
@@ -419,7 +469,9 @@ embed in a note (item 4) covers the round trip from the other side.
 | Filter / Sort / Head / Distinct / Get Row (exist) | passthrough | table input becomes `cubeIn` | adopts: cube in → cube out | — (Filter gains `contains` / `is empty` for list cells) | `selectCubeRows` in `frame.ts` · `cubeRowVerbs.test.ts` |
 | Get Column / Decision Matrix / H6 (exist) | — | table input becomes `cubeIn` | unchanged (list / ranking frame / H6: the input cube + 4 columns) | — | same test file |
 | Write Properties | sink · Connections | `cube` (frame widens) | `plan` frame | vault, keys, addMissing, stamp, writeBase | `frontmatterPatch.ts` (+ nested frame → `- {k: v}` block) · `frontmatterPatch.test.ts` (round-trips: untouched bytes identical; cube → vault → cube equal) |
-| Write to Obsidian (+mode) | sink (exists) | `document` | — | + mode, fileName template | `managedBlock.ts` · `managedBlock.test.ts`; `fileNameTemplate.ts` (pure) |
+| Write to Obsidian (+mode) | sink (exists) | `document`, optional `date` | — | + mode, fileName / subfolder templates | `managedBlock.ts` · `managedBlock.test.ts`; `nameTemplate.ts` (pure, R1) |
+| Vault Folder (+R3) | — | — | + `date` built-in | + nameFormat (defaults from `.obsidian/daily-notes.json`) | `dailyNotesConfig.ts` (pure parse) |
+| (app) midnight rollover | — | — | — | — | `volatileDates.ts` scan + one timer → `requestRecalc()` (R5) |
 | TaskNotes | connection · Connections | `from`, `to` (dates, Calendar provider only) | Tasks: `cube`; Calendar: `frame`; Stats: scalars | provider, refreshMinutes | `taskNotesApi.ts` · `taskNotesApi.test.ts` (fixtures per endpoint) |
 | Write Tasks | sink · Connections | `cube` (frame widens) | `plan` frame | mode (create / update), keys, stamp | shares `taskNotesApi.ts`; list cells → the API's arrays |
 | (CLI) `run-graph --vault --tasknotes --run` | — | — | — | — | `scripts/run-graph.test.ts` gains a vault-fixture case and a `--run` case against a temp copy |
@@ -453,7 +505,8 @@ The fs allowlist change (`.yaml`/`.yml` read) is a one-line capability edit, doc
 
 ## Sequencing (dependency order)
 
-A′ → A → B → D → C → F (feed + F4/F3/F5 + F6) → I → J → E; F1 when H6 lands; G and H on hold.
+A′ → A → B → D → C (+R1/R2) → F (feed + F4/F3/F5 + F6) → I → J → E; R3 with A, R5 any time
+(no dependency, one file); F1 when H6 lands; G and H on hold.
 A′ first: a Vault Folder cube that nothing can filter is not a product. A alone is a
 product ("your vault as a table"). A + B is the loop ("compute in Solenoid, see it in Bases").
 F is independent of B and C and could go first if the author's own use is task-shaped.
