@@ -11,9 +11,9 @@ import { parseDailyNotesConfig } from "../dailyNotesConfig";
 import { type TypeMap } from "../vaultTypes";
 import { applyFcUnit } from "../unitBridge";
 import { type Shape } from "../frameShape";
-import { connectionStore, scheduleConnectionRecalc, requestNetwork } from "../connectionStore";
+import { connectionStore, scheduleConnectionRecalc, requestNetwork, trackInflight } from "../connectionStore";
 import { settingsStore } from "../settingsStore";
-import { isDesktop, readFileText, joinPath, listVaultMarkdownFiles, listMarkdownFiles, readVaultFile, statVaultFile } from "../fileBridge";
+import { isDesktop, hasFs, readFileText, joinPath, listVaultMarkdownFiles, listMarkdownFiles, readVaultFile, statVaultFile } from "../fileBridge";
 import { fetchText } from "../httpBridge";
 import { frameFromCells, frameFromRecords, frameFromRows, frameFromColumnar, frameRowCount, cubeRowCount, type FrameValue, type CubeValue } from "../frame";
 import { parseCsvRows } from "../csv";
@@ -772,14 +772,14 @@ export class VaultFolderNode extends ClassicPreset.Node {
     const key = connectionStore.key(this.id, `${this.vault}\u0000${this.folder}\u0000${this.glob}\u0000${this.nameFormat}\u0000${this.includeBody ? 1 : 0}`);
     if (key !== this._lastKey) {
       this._lastKey = key;
-      if (!isDesktop()) {
+      if (!hasFs()) {
         this.cached = null;
         connectionStore.setState(this.id, { status: "error", message: "Reading a vault is available in the desktop app only" });
       } else if (this.vault.trim() === "") {
         this.cached = null;
         connectionStore.setState(this.id, { status: "idle" });
       } else {
-        void this.load().then(() => scheduleConnectionRecalc());
+        void trackInflight(this.load()).then(() => scheduleConnectionRecalc());
       }
     }
     return { cube: this.cached };

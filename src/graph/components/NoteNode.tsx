@@ -23,14 +23,14 @@ import { dropStrandedFrontmatterCables } from "../noteFrontmatterSync";
 import { formatAnnotationStore, formatNumberWithAnnotation } from "../formatAnnotationStore";
 import { formatDateSerial, DEFAULT_DATE_FORMAT } from "../nodes/date";
 import { parseNoteFrontmatter, toggleTaskMarker, type FrontmatterFieldType, type FrontmatterValue } from "../noteFrontmatter";
-import { isFrameValue, type FrameValue } from "../frame";
+import { isFrameValue, isCubeValue, type FrameValue, type CubeValue } from "../frame";
 import type { NodeProps, Emit } from "./nodeKit";
 import type { ClassicPreset } from "rete";
 import { stopDragStart } from "../coarse";
 import "./Markdown.css";
 import "./NoteNode.css";
 
-type FieldValue = FrontmatterValue | FrameValue;
+type FieldValue = FrontmatterValue | FrameValue | CubeValue;
 
 // Grouped by dimensionality — the override picker offers the four element families at
 // the field's CURRENT dimension; glyphs reuse the Socket Legend vocabulary.
@@ -39,12 +39,12 @@ const LIST_FIELD_TYPES: FrontmatterFieldType[] = ["list", "strlist", "datelist",
 const FIELD_TYPE_LABEL: Record<FrontmatterFieldType, string> = {
   number: "Number", string: "Text", date: "Date", logical: "Boolean",
   list: "Number list", strlist: "Text list", datelist: "Date list", logicallist: "Boolean list",
-  frame: "Frame",
+  frame: "Frame", cube: "Cube",
 };
 const isListFieldType = (t: FrontmatterFieldType) => LIST_FIELD_TYPES.includes(t);
 
 function glyphFor(t: FrontmatterFieldType): SocketGlyph {
-  return { kind: isListFieldType(t) || t === "frame" ? "square" : "circle", color: SOCKET_COLORS[t] };
+  return { kind: isListFieldType(t) || t === "frame" || t === "cube" ? "square" : "circle", color: SOCKET_COLORS[t] };
 }
 
 /** A short, human-readable preview of a field's value for the row. */
@@ -53,6 +53,11 @@ function previewValue(value: FieldValue, t: FrontmatterFieldType): string {
     if (!isFrameValue(value)) return "table";
     const rows = value.columns[0]?.values.length ?? 0;
     return `⊞ ${rows}×${value.columns.length}`;
+  }
+  if (t === "cube") {
+    if (!isCubeValue(value)) return "cube";
+    const rows = value.columns[0]?.cells.length ?? 0;
+    return `⧈ ${rows}×${value.columns.length}`;
   }
   const one = (v: number | string | boolean | null): string => {
     if (v === null) return "null";
@@ -388,7 +393,7 @@ export function FieldRow({
   // Offer the four element families at this field's current dimensionality — its
   // value already fixed scalar vs list; the override only swaps the element type. A
   // frame field has no element-type to swap, so its glyph is inert (no picker).
-  const canRetype = type !== "frame";
+  const canRetype = type !== "frame" && type !== "cube";
   const options = isListFieldType(type) ? LIST_FIELD_TYPES : SCALAR_FIELD_TYPES;
 
   // An FC fed by this field formats the box BEHIND it — this row — so render its locked

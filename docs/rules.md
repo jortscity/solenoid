@@ -146,7 +146,7 @@ procedure is in the PROV section). Machine-checked against the actual headings b
 | targetedEqualsFull | The targeted pass is observationally equal to the full pass |
 | onlyCalcModeSkips | The calc-mode gate is the ONLY thing that skips a pass |
 | refreshOutsideRebuild | A live-data refresh never runs inside a rebuild scope |
-| sinkRunButtonOnly | A sink acts only from its Run button, and always loads disarmed |
+| sinkRunButtonOnly | A sink acts only from its Run button (or the CLI's explicit `run-graph --run <name>`), and always loads disarmed |
 | effectsEdgeTriggered | An outward effect is edge-triggered, and suppressed during rebuild |
 | storesRegisterForget | A node-keyed store registers forget AND forgetAll |
 
@@ -1616,7 +1616,7 @@ twins: an effect that fires when it shouldn't (a load writes your disk) and an e
 that silently never fires (an alert that misses its edge is a non-event with no
 appearance).
 
-### sinkRunButtonOnly — A sink acts only from its Run button, and always loads disarmed **[DEFAULT]**
+### sinkRunButtonOnly — A sink acts only from its Run button (or the CLI's explicit `run-graph --run <name>`), and always loads disarmed **[DEFAULT]**
 **MUST:** a node with an irreversible external effect (disk write) never acts from
 `data()` — `data()` caches for preview only; the effect lives in `run()`, fired only by
 the node's Run button, behind an `enabled` arm flag. The arm flag NEVER persists: it is
