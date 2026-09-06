@@ -43,7 +43,12 @@ verbs" — so A′ is now **the row verbs take cubes** (Filter / Sort / Head / D
 Get Column / Decision Matrix / H6 via `cubeIn`, output adopting through the passthrough
 declaration, one `selectCubeRows` helper on the eager JS branch); no Flatten node, and the only
 list-to-text join left is Write File's CSV mode. Sequenced first: a cube nothing can filter is
-not a product. Follow-up ask ("what about TaskNotes itself?") grew item F
+not a product. A cold reviewer pass then fixed what the drafts left behind: the reader
+is an EAGER cube (no `FrameRef` — nested cells never reach Polars), Filter gains `contains` /
+`is empty` on list cells because "notes tagged x" is the vault query, `tags` is the property
+not a built-in, the write plan is `pending` until Preview reads the notes, a `%%` in managed-
+block content is refused rather than invisibly escaped, and the provenance stamp is opt-in on
+property writes. Follow-up ask ("what about TaskNotes itself?") grew item F
 into six sub-items — the ranking is by what Bases formulas cannot do (dependency traversal,
 Monte Carlo, pivots), read via the API so field mapping stays the plugin's job.
 

@@ -52,7 +52,7 @@ rows-of-objects key) has no honest cell in a flat frame — a folder of notes IS
 fields can be lists or tables, which is the cube's definition. The lattice already refuses to
 let a cube flow into a `frame` socket ("the nesting would be silently dropped",
 `sockets.ts`), and the author asked what a "flatten" step would even be for — the answer was
-"to reach the 39 frame-only verbs", which is a reason to make the **row verbs take cubes**
+"to reach the frame-only verbs", which is a reason to make the **row verbs take cubes**
 (A′), not to add a node. Bases users filter and sort notes with list properties without a
 flattening step because the filter only reads scalar columns; Solenoid does the same. Two
 drafts died here: a `frame` twin output on each reader, then a Flatten verb with a rule menu.
@@ -104,19 +104,20 @@ the `_types` task type file with the TaskNotes field map + contract bindings, `l
 **The reading.** The author's ecosystem is converging on *typed markdown collections*: the
 schema lives in the vault (`_types`), the tracker (TaskNotes) writes records, the Obsidian
 plugin validates, and **query execution and computation are explicitly left to companion
-tools**. Solenoid is the companion tool with a canvas: read the collection as a Frame, run the
+tools**. Solenoid is the companion tool with a canvas: read the collection as a cube, run the
 full verb set + Decision Matrix + Schedule + Monte Carlo + charts over it, and write properties
 back. Nothing on the mdbase side does that today, and Bases formulas stop at per-row.
 
 ## The items
 
-**A. Vault Folder → Frame** (the keystone; a connection node in `nodes/connection.ts`, kind
+**A. Vault Folder → Cube** (the keystone; a connection node in `nodes/connection.ts`, kind
 `connection`, Add → Connections, label **Vault Folder**). Init: `vault` (absolute path, the
 `FileLinkNode.path` pattern, defaulting from the setting at creation and shown as a chip),
 `folder` (vault-relative, "" = root), `glob` (optional, `tasks/**`), `includeBody` (off),
 `refreshMinutes`. One row per note; one output, **`cube`** (label "Notes"). Columns:
-built-ins `path · name · folder · tags · created · modified` (file times as serials; `tags`
-property-only in v1), then the **union of frontmatter keys in first-seen order**. Cells: a
+built-ins `path · name · folder · created · modified` (file times as serials), then the
+**union of frontmatter keys in first-seen order** — `tags` arrives as the property it is (a
+list cell; inline `#tags` from bodies are v2 and would merge into the same column). Cells: a
 scalar as typed below; a list → a list cell (`CubeCell[]`); a rows-of-objects key → a nested
 frame (the same `rowsToFrame` the Import Note uses); a block-style nested object → a nested
 frame once the parser learns the shape (the v1 parser work item; until then the raw YAML text
@@ -125,33 +126,43 @@ as a string, never a dropped key). Column typing, first source that answers wins
 1. an **mdbase type** whose `path_glob` matches the note (walk up from `folder` to the vault
    root for `mdbase.yaml`; needs `.yaml`/`.yml` in the fs allowlist): JSON Schema `string` /
    `number` / `integer` / `boolean` / `enum` → `string` / `number` / `number` / `logical` /
-   `string`; `format: date` / `date-time` → `date`; `array` of scalars → a list cell;
-   `array` of `object` → a nested frame (its `properties` type the nested columns); `required`
-   keys always present;
+   `string`; `format: date` / `date-time` → `date`; `array` of scalars → a list cell whose
+   items parse by the item type; `array` of `object` → a nested frame (its `properties` type
+   the nested columns); `required` keys always present. `path_glob` matches relative to the
+   folder holding `mdbase.yaml`;
 2. **`.obsidian/types.json`** (a direct read — the walk skips dot-folders but a read is
-   allowed; `.json` is in scope): `text→string`, `number→number`, `checkbox→logical`,
-   `date`/`datetime→date`, `list`/`tags`/`aliases→strlist`;
+   allowed; `.json` is in scope — **verify** that the capability glob `$HOME/**/*.json`
+   matches a path with a dot-folder segment, else add `$HOME/**/.obsidian/types.json`):
+   `text→string`, `number→number`, `checkbox→logical`, `date`/`datetime→date`,
+   `list`/`tags`/`aliases` → a list cell of strings;
 3. the existing guesser, widened per column across rows (a column mixing numbers and text is
    `string`; all-null is `string`).
 
-ISO datetimes parse to
-fractional serials (fixing the Note path too, one parser). Desktop: a `FrameRef` through the
-backend seam like Local File; web: the node exists, shows the desktop-only hint, emits the
-last persisted preview (nothing — a vault read is desktop-only, unlike the Import Note's
-persisted body). Pure cores: `vaultFrame.ts` (`notesToCube(files: {path, text, mtime}[],
-types: ColumnTypes)`), `mdbaseTypes.ts` (schema → `FrontmatterFieldType`),
-`obsidianTypes.ts` (types.json → the same), each unit-tested off a fixture folder in
-`fixtures/vault/` (an mdbase collection, a plain folder, a folder with types.json).
+"Typing" here governs how each scalar and each list item is PARSED (date vs text, number vs
+text); a cube column carries no declared type, so list and nested columns are simply cells.
+ISO datetimes parse to fractional serials (fixing the Note path too, one parser). The cube is
+an **eager JS value** — nested cells never reach Polars, so there is no `FrameRef` and no
+backend seam here (Local File's lazy handle is the wrong model; Decision Matrix's eager class
+is the right one). Web: the node exists, shows the desktop-only hint, emits nothing (a vault
+read is desktop-only, unlike the Import Note's persisted body). Pure cores: `vaultCube.ts`
+(`notesToCube(files: {path, text, mtime}[], types: ColumnTypes)`), `mdbaseTypes.ts` (schema →
+parse types), `obsidianTypes.ts` (types.json → the same), each unit-tested off a fixture
+folder in `fixtures/vault/` (an mdbase collection, a plain folder, a folder with types.json).
 
 **A′. The row verbs take cubes** (the general change this bundle needs; useful with no vault
 in sight). The verbs whose operation reads only scalar columns and keeps rows whole accept a
 cube on their table input — `cubeIn("Table / Cube")`, the XLOOKUP precedent — and nested cells
-ride along untouched: **Filter, Sort, Head, Distinct, Get Row** (row selection), **Get Column**
-(a scalar column → its list; a nested column → `#SHAPE!` in v1), **Decision Matrix** (scalar
-criteria; list/nested columns ignored like date columns are), and **H6 Schedule** (Predecessors
-as a text cell OR a list cell). Output follows input: a cube in → a cube out, through the
-passthrough declaration (`nodes/passthrough.ts`, the `single` mode Display and Reverse use)
-so the output type adopts. Mechanism: ONE helper, `selectCubeRows(cube, indices)` in
+ride along untouched: **Filter, Sort, Head, Distinct, Get Row** (row selection — these ARE
+passthroughs, so a cube in → a cube out through the passthrough declaration,
+`nodes/passthrough.ts`, the `single` mode Display and Reverse use, and the output type
+adopts), **Get Column** (a scalar column → its list as today; a list column → `#SHAPE!` in v1),
+**Decision Matrix** (reads scalar criteria from a cube, list/nested columns ignored like date
+columns are; still emits its ranking FRAME — not a passthrough), and **H6 Schedule**
+(Predecessors as a text cell OR a list cell; a cube in → the same cube with the four columns
+appended). **Filter on a list column** is the one predicate that must exist, because
+"notes tagged x" is THE vault query: `contains` (any item equals the value) and `is empty` work
+on a list cell; every other operator on a list column → `#SHAPE!`, and Sort on a list column →
+`#SHAPE!`. Mechanism: ONE helper, `selectCubeRows(cube, indices)` in
 `frame.ts`, fed by the verb's existing predicate / sort key evaluated over the scalar column —
 the eager JS branch taken when `isCubeValue(input)`, before the lazy `FrameRef` path, exactly
 the `decisionMatrix` class; Polars never sees a nested cell, so `oneVerbCorpus` is untouched
@@ -163,14 +174,16 @@ to text is **Write File** in CSV mode (`", "`), because a CSV cell has no other 
 column: rows selected correctly, nested cells identical by reference, output brand `__cube`.
 
 **B. Write Properties** (sink, Add → Connections beside Write File; Run-button only,
-`sinkRunButtonOnly`). Input: **`cube`** (a frame widens into it, so either reader output fits;
-needs a `path` column — A's, or anything joined to it). Init: `keys` (which columns to write;
-the path column never), `vault`, `addMissing` (on). `data()` caches only and emits **`plan`, a
-frame** (`path · key · before · after · action` with action ∈ update / add / skip / refused
-+ reason) — the preview IS data: filter it, sort it, count it, wire it to a Display, before
-anything is armed. The card's status line summarises the same frame ("43 notes · update
-`score` in 43 · add `rank` to 12 · 2 unreadable · 1 refused"); the `before` column is filled by
-a **Preview** button (reads, never writes) and stays null until pressed. Run applies the plan
+`sinkRunButtonOnly`). Input: **`cube`** (a frame widens into it; needs a `path` column — A's,
+or anything joined to it). Init: `keys` (which columns to write; the path column never),
+`vault`, `addMissing` (on), `stamp` (off — see D). `data()` caches only and emits **`plan`, a
+frame** (`path · key · before · after · action`) — the preview IS data: filter it, sort it,
+count it, wire it to a Display, before anything is armed. Straight from `data()` the plan
+knows only what the cube says: every row × key with `after` filled and `action = pending`.
+The **Preview** button (reads the notes, never writes) fills `before` and resolves `action`
+to update / add / unchanged / unreadable / refused-with-reason; the card's status line
+summarises the resolved frame ("43 notes · update `score` in 43 · add `rank` to 12 · 2
+unreadable · 1 refused"). Run requires a resolved plan and applies it
 through the atomic tmp+rename write. **Cell → YAML:** a scalar as today; a list cell → a block
 list; a **nested frame cell → a `- {k: v}` block list**, the exact rows-of-objects shape the
 Note parser and A read back — so a cube round-trips through the vault losslessly. The patch is **line-level over the raw text**, never a
@@ -190,16 +203,20 @@ that edits a note's YAML (a `onePatchPath` rule candidate).
 `block` splices the assembled markdown between `%% solenoid:begin <node name> %%` and
 `%% solenoid:end %%` (Obsidian hides `%%` comments in reading view; the node's addressable
 name keys the pair, so two Write nodes can own two blocks in one note). First write appends
-the pair at the end of the note; later writes replace only the span. A `%%` inside the
-assembled content is broken up (a zero-width space between the two signs) so it cannot close
-the block early. Pure
+the pair at the end of the note; later writes replace only the span. Assembled content that
+itself contains `%%` outside a code fence is **refused** with the reason on the status line (an
+Obsidian comment in a wired Note's body is the only way to get one there) — no escaping
+trick, nothing invisible written into the author's note. Pure
 `managedBlock.ts` (`spliceBlock(text, name, content)`), tested on: no markers, two pairs,
 markers inside a code fence (ignored — fences win), a begin with no end (append a fresh pair,
 leave the orphan).
 
-**D. Links both ways.** Every written note (B and Write to Obsidian) gets a `solenoid`
-frontmatter key, `"<document name> › <node name>"` — the addressable name, never the rete id
-(`../subsystem-invariants.md` § Addressable model). Vault Folder, Import Note and both writers
+**D. Links both ways.** A note Write to Obsidian writes gets a `solenoid` frontmatter key,
+`"<document name> › <node name>"` — the addressable name, never the rete id
+(`../subsystem-invariants.md` § Addressable model); the note is Solenoid's output, so the
+provenance belongs on it. On B and F6 the same key is the **`stamp` toggle, off by default**:
+those notes are the user's records, and a provenance key on every task note is noise in every
+Bases view. Vault Folder, Import Note and both writers
 get an **Open in Obsidian** button: `obsidian://open?vault=<basename of the vault
 path>&file=<vault-relative path, URL-encoded, no .md>` through `openExternal` (no new
 capability; Windows backslashes normalised to `/` first). A `solenoid://` deep link back
@@ -302,7 +319,7 @@ same for the feed with Node `fetch`. Writers: `--run <node name>` arms and runs 
 (B, C's Write to Obsidian, F6) — the CLI flag is the Run button's headless equivalent, named
 per node so nothing fires by accident; `sinkRunButtonOnly`'s wording gains that one clause.
 With J, a `tasknotes-workflows` step or an Obsidian "Shell commands" hotkey can run a graph
-and write its results back without a listener (G), and `vaultFrame.test.ts` runs the real
+and write its results back without a listener (G), and `vaultCube.test.ts` runs the real
 node over `fixtures/vault/` instead of only the pure core.
 
 **Not doing.** `.canvas` export (`canvas-bases` already materializes Bases views; a Solenoid
@@ -316,12 +333,13 @@ actions, CloudEvents, hosted Connect. Wikilink resolution inside Note bodies and
 
 | Node | Kind · menu | In | Out | Init (persisted) | Pure core · test |
 |---|---|---|---|---|---|
-| Vault Folder | connection · Connections | — | `cube` ("Notes") | vault, folder, glob, includeBody, refreshMinutes | `vaultFrame.ts` (`notesToCube`), `mdbaseTypes.ts`, `obsidianTypes.ts` · `vaultFrame.test.ts` over `fixtures/vault/` |
-| Filter / Sort / Head / Distinct / Get Row / Get Column / Decision Matrix (exist) | — | table input becomes `cubeIn` | output adopts (cube in → cube out) | — | `selectCubeRows` in `frame.ts` · `cubeRowVerbs.test.ts` |
-| Write Properties | sink · Connections | `cube` (frame widens) | `plan` frame | vault, keys, addMissing | `frontmatterPatch.ts` (+ nested frame → `- {k: v}` block) · `frontmatterPatch.test.ts` (round-trips: untouched bytes identical; cube → vault → cube equal) |
+| Vault Folder | connection · Connections | — | `cube` ("Notes") | vault, folder, glob, includeBody, refreshMinutes | `vaultCube.ts` (`notesToCube`), `mdbaseTypes.ts`, `obsidianTypes.ts` · `vaultCube.test.ts` over `fixtures/vault/` |
+| Filter / Sort / Head / Distinct / Get Row (exist) | passthrough | table input becomes `cubeIn` | adopts: cube in → cube out | — (Filter gains `contains` / `is empty` for list cells) | `selectCubeRows` in `frame.ts` · `cubeRowVerbs.test.ts` |
+| Get Column / Decision Matrix / H6 (exist) | — | table input becomes `cubeIn` | unchanged (list / ranking frame / H6: the input cube + 4 columns) | — | same test file |
+| Write Properties | sink · Connections | `cube` (frame widens) | `plan` frame | vault, keys, addMissing, stamp | `frontmatterPatch.ts` (+ nested frame → `- {k: v}` block) · `frontmatterPatch.test.ts` (round-trips: untouched bytes identical; cube → vault → cube equal) |
 | Write to Obsidian (+mode) | sink (exists) | `document` | — | + mode | `managedBlock.ts` · `managedBlock.test.ts` |
 | TaskNotes | connection · Connections | `from`, `to` (dates, Calendar provider only) | Tasks: `cube`; Calendar: `frame`; Stats: scalars | provider, refreshMinutes | `taskNotesApi.ts` · `taskNotesApi.test.ts` (fixtures per endpoint) |
-| Write Tasks | sink · Connections | `cube` (frame widens) | `plan` frame | mode (create / update), keys | shares `taskNotesApi.ts`; list cells → the API's arrays |
+| Write Tasks | sink · Connections | `cube` (frame widens) | `plan` frame | mode (create / update), keys, stamp | shares `taskNotesApi.ts`; list cells → the API's arrays |
 | (CLI) `run-graph --vault --tasknotes --run` | — | — | — | — | `scripts/run-graph.test.ts` gains a vault-fixture case and a `--run` case against a temp copy |
 
 Every write node: `enabled` stays out of the persistence whitelist (loads disarmed, the
@@ -344,7 +362,8 @@ it stays the "vault as a source" demo.
 
 `sinkRunButtonOnly` (every writer; amended by J to "the Run button, or the CLI's explicit
 `--run <name>`"), `noDataInComponents` (Preview is a pure plan over the
-cached frame + reads), `retypeReconciles` avoided by design (frame output), `onePrunePath`
+cached frame + reads), `retypeReconciles` avoided by design (one `cube` output; A′'s output adoption is derived
+state, never persisted), `onePrunePath`
 untouched (no per-key sockets), a new **`onePatchPath`** candidate (`frontmatterPatch.ts` is
 the only writer of a note's YAML; `obsidianWrite.ts` writes whole documents, never patches).
 The fs allowlist change (`.yaml`/`.yml` read) is a one-line capability edit, documented in
@@ -391,6 +410,8 @@ line-level patching that never re-serializes + untouched bytes proven identical 
 the whole safety story, and each pure core gets its fixture test before a node exists. Large
 vaults: the walk is depth-6 and unindexed; A reads every matched file per refresh — fine to a
 few thousand notes, and the mtime built-in lets a later session add an mtime-keyed cache.
+The cube is eager and lives in JS memory (no Polars offload for nested data); `includeBody`
+off keeps it to properties, which is small.
 
 ## Sources (read 2026-09-06)
 
