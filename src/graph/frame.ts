@@ -635,14 +635,21 @@ function subFrame(child: FrameValue, rowIdxs: number[]): FrameValue {
   };
 }
 
+/** Row subset of a cube by row index — the `subFrame` analogue. Nested cells (lists,
+ *  sub-tables) ride along BY REFERENCE, so the row verbs (A′) reorder/keep whole rows
+ *  without Polars ever seeing a nested cell. Out-of-range indices become blank rows. */
+export function selectCubeRows(cube: CubeValue, indices: readonly number[]): CubeValue {
+  return makeCube(cube.columns.map((c) => ({
+    name: c.name,
+    ...(c.type ? { type: c.type } : {}),
+    cells: indices.map((i) => c.cells[i] ?? null),
+  })));
+}
+
 /** Row subset of a cube — the `subFrame` analogue, so a pre-built cube keeps its
  *  own nesting when nested. */
 function subCube(child: CubeValue, rowIdxs: number[]): CubeValue {
-  return makeCube(child.columns.map((c) => ({
-    name: c.name,
-    ...(c.type ? { type: c.type } : {}),
-    cells: rowIdxs.map((i) => c.cells[i] ?? null),
-  })));
+  return selectCubeRows(child, rowIdxs);
 }
 
 /** Relate parent + child on a shared key into a Cube: one NESTED column whose cells
