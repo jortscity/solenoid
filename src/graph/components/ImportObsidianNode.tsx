@@ -274,7 +274,7 @@ export function ImportObsidianComponent({ data, emit }: NodeProps<ImportObsidian
         <NodeSocket side="output" socketKey="document" nodeId={data.id} emit={emit} payload={data.outputs.document.socket} top={docDotTop} />
       )}
 
-      {!collapsed && (
+      {!collapsed && !pickerOpen && (
         <div ref={bodyRef} className="solenoid-note__content">
           {data.renderBody.trim() ? (
             <div
