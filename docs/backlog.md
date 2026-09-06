@@ -89,8 +89,6 @@ elkjs-vs-rete-auto-arrange peer conflict left with the plugin.
   upstream walk go. Analysis + scope in `1.4-plan.md` Track I. Gate: the author's go after the
   downstream-flow work has been lived with, plus the source-node control design.
 
-## Units
-
 ## Seeds
 
 - [ ] **Seed-layout sweep — the author eyeballs the 20 re-cut seeds** (2026-09-04b, two agent
