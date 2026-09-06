@@ -22,18 +22,13 @@ elkjs-vs-rete-auto-arrange peer conflict left with the plugin.
 ## Release planning (author-run)
 
 - [ ] **Finish ratifying the 1.4 cut** — the author walked `1.4-plan.md` one item per turn on
-  2026-09-04c and 2026-09-06 (Tracks A–F ruled; every ruling is in the table's Call column). NEXT:
-  Track H (the scheduling slice — see the review line below), then G; then `2.0-plan.md`.
+  2026-09-04c and 2026-09-06 (Tracks A–H ruled; every ruling is in the table's Call column and
+  the Track H headings). NEXT: G (release tail); then `2.0-plan.md`.
 - [ ] **Ratify `out-of-scope.md`** (DRAFT since July, no ARR anywhere in it) — the deferral
   review's standing ask. Test 3 / §3 / §11 already read the author's 2026-09-01 order
   (collaboration IN); the rest is still the agent's inference awaiting the author's word.
 - [ ] **The `rules.md` ARR pass** (author-present; the author: waits for 1.4) — early in the
   release, before the track work adds rules (`1.4-plan.md` D3).
-- [ ] **Review with the author — the scheduling slice of Track H** (`1.4-plan.md` § Scheduling
-  slice, 2026-09-04b): H4 Rota (shift fill-in, round-robin / fewest-hours-first), H5 Spread over
-  dates (phasing), H6 Schedule (CPM forward/backward pass), H7 Common free time, plus "hours
-  balancing is the Allocator" as a seed. GATE: nothing starts until the author picks; the first
-  pass's Hungarian matching + Erlang staffing sit in `deferrals.md`.
 
 ## Composites
 
@@ -74,6 +69,26 @@ elkjs-vs-rete-auto-arrange peer conflict left with the plugin.
   (`ipmtPpmtLeaf` / `cumPmtLeaf`) become one "Payment Breakdown" leaf; retired names "IpmtPpmt" /
   "CumPmt" → Placeholder (registry test). Suites: financeInvariants, parity, nodeOps,
   formulaNodeCoverage, seeds, catalogRegistry, uiCopy.
+
+## Track H — Allocator-family nodes (author 2026-09-06: in)
+
+Each ships WITH a seed baked via `scripts/tune-seeds.mjs`; specs are the `1.4-plan.md` § Track H
+sections. Gate defaults below are the lead's picks unless the author overrules.
+
+- [ ] **H3 Group Cost Settle** — people frame (Paid, optional Share) → transfers frame (From · To ·
+  Amount) + per-person Net; greedy biggest-creditor-to-biggest-debtor. Default: equal split (Share
+  weights when present). Seed "Trip split".
+- [ ] **Hours-balancing seed on the Allocator** ("Balance a team's hours": people Min · Max · Weight,
+  the Allocator with `h` on Min, a Display of Share as %) + loosen the Allocator's socket copy from
+  "price range" to "range". Zero code beyond copy.
+- [ ] **H1 Payoff Planner** — debts frame (Balance, APR, Min payment) + `extra`; Avalanche |
+  Snowball; monthly cascade, closed-form. Output mode: summary (Debt · Months · Interest · Payoff
+  date) default, schedule frame (Month · per-debt balance) the other. Currency unit carried. Seed
+  "Debt payoff".
+- [ ] **H6 Schedule (CPM)** — tasks frame/cube (Task · Duration · Predecessors) + Start, Working
+  days (default on), Holidays → rows + Start · Finish · Float · Critical, `Project finish` scalar,
+  `gantt` Mermaid source. Pure verb, Kahn + forward/backward pass; Float in v1. Seed "Kitchen
+  remodel". Full spec `1.4-plan.md` § H6.
 
 ## Canvas annotation
 
