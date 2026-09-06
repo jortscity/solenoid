@@ -40,7 +40,14 @@ Garden seed, fe takes A′ (row verbs take cubes) then B (Write Properties) afte
 **TaskNotes** feed node (F: Tasks cube / Calendar frame / Stats, `taskNotesApi.ts`), **Write
 Tasks** sink (F6, plan frame + Preview + Run), the **which-task-next** seed (F4), **Write to
 Obsidian modes + templates** (C: overwrite | append | block via `managedBlock.ts`; `{{date}}`
-`{{daily}}` `{{name}}` `{{doc}}` via `nameTemplate.ts`, a `date` input, live name preview).
+`{{daily}}` `{{name}}` `{{doc}}` via `nameTemplate.ts`, a `date` input, live name preview),
+**Open in Obsidian** (D first half: `obsidianLinks.ts`, opener capability widened to
+`obsidian://**`), **Import Note reload cadence** (I) and the **midnight rollover** (R5,
+`volatileDates.ts`). The Mermaid card now collapses (it was `collapsible={false}`) and a
+collapsed Display holding a diagram shows a Diagram chip (`DiagramChip.tsx`; click re-expands).
+Held until A merges: J (headless `run-graph --vault / --tasknotes / --run`, which needs a Node
+fs provider behind `fileBridge`); E waits on the Stage-0 watcher; D's stub note waits on B's
+`frontmatterPatch`.
 Also: fetcher cards name their data source; the remodel seed is Remodel (Gantt) fed by a
 Holidays node; `yaml` (mdbase schemas) + `qrcode` deps added on the author's word; CUMIPMT /
 CUMPRINC sign bug fixed with D2 (author: no op-picker exception). Queued by the author: collapsed
