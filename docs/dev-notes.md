@@ -36,7 +36,10 @@ write sink's preview is a `plan` frame output, not a status string. Then ("keep 
 `gantt` Mermaid-source output so Write to Obsidian renders a Gantt natively with no figure code;
 F2 gets an Alert on overload; item **J headless seam** (`run-graph --vault / --tasknotes /
 --run <sink>` — the CLI's explicit flag is the Run button's headless equivalent; the one
-`sinkRunButtonOnly` wording change) makes the Obsidian-triggered recompute (G's reverse path) real. Follow-up ask ("what about TaskNotes itself?") grew item F
+`sinkRunButtonOnly` wording change) makes the Obsidian-triggered recompute (G's reverse path) real. Author: "Vault Folder → cube instead? properties can be
+lists" — adopted: readers emit ONE `cube` (the `frame` twin output is gone; the lattice already
+refuses cube → frame), and the flat path is a new general **Flatten** cube verb (A′: per-kind
+Join / Count / First / Drop) whose Join on `blockedBy` is exactly H6's `predecessors` text. Follow-up ask ("what about TaskNotes itself?") grew item F
 into six sub-items — the ranking is by what Bases formulas cannot do (dependency traversal,
 Monte Carlo, pivots), read via the API so field mapping stays the plugin's job.
 

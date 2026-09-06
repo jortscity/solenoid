@@ -45,12 +45,16 @@ a kanban (`../out-of-scope.md` §5 "point at databases", §8 "computes, does not
 Obsidian plugin: every touchpoint is a file, a local HTTP port, or a URI. Reads emit **tables,
 never per-key sockets** — a folder's key set changes between refreshes, and a table absorbs
 that with no socket retype (`retypeReconciles` never fires; the Import Note keeps the per-key
-form for the single-record case). **Two outputs per reader, `frame` and `cube`** (audit
-2026-09-06): a frame column is number / string / logical / date only, so a list-valued
-property (`tags`, `projects`, `contexts`) or a nested object (`timeEntries`, a rows-of-objects
-key) has no honest cell in a flat frame; the `cube` output keeps them as list cells and nested
-frames (`CubeCell`), the `frame` output flattens them for the relational verbs. One read, two
-projections; Unnest / Cube Rollup / Cube Columns are the bridges back.
+form for the single-record case). **A reader emits ONE `cube`** (author, 2026-09-06:
+"properties can be lists"): a frame column is number / string / logical / date only, so a
+list-valued property (`tags`, `projects`, `contexts`) or a nested object (`timeEntries`, a
+rows-of-objects key) has no honest cell in a flat frame — a folder of notes IS records whose
+fields can be lists or tables, which is the cube's definition. The lattice already refuses to
+let a cube flow into a `frame` socket ("the nesting would be silently dropped",
+`sockets.ts`), so the flat projection is an **explicit verb**, not a second socket: a new
+**Flatten** cube verb (A′) beside the existing Unnest (one nested column → long form) and
+Cube Rollup (aggregate a nested column). A first draft had a `frame` twin output on each
+reader; dropped — it hid a general verb the cube family lacks and doubled every socket doc.
 
 ## The ecosystem, read 2026-09-06 (what the plan leans on)
 
@@ -109,38 +113,46 @@ back. Nothing on the mdbase side does that today, and Bases formulas stop at per
 `connection`, Add → Connections, label **Vault Folder**). Init: `vault` (absolute path, the
 `FileLinkNode.path` pattern, defaulting from the setting at creation and shown as a chip),
 `folder` (vault-relative, "" = root), `glob` (optional, `tasks/**`), `includeBody` (off),
-`refreshMinutes`. One row per note; outputs **`frame`** (flat) and **`cube`** (nested).
-Columns: built-ins `path · name · folder · tags · created · modified` (file times as serials;
-`tags` property-only in v1), then the **union of frontmatter keys in first-seen order**.
-**Flattening rules for `frame`:** a list → its items joined `", "` as a string; a rows-of-objects
-key or a block-style nested object → the raw YAML text as a string. **In `cube`:** a list → a
-list cell (`CubeCell[]`), a rows-of-objects key → a nested frame (the same `rowsToFrame` the
-Import Note uses), a block-style nested object → a nested frame once the parser learns the
-shape (the v1 parser work item; until then raw text there too). Column typing, first source
-that answers wins:
+`refreshMinutes`. One row per note; one output, **`cube`** (label "Notes"). Columns:
+built-ins `path · name · folder · tags · created · modified` (file times as serials; `tags`
+property-only in v1), then the **union of frontmatter keys in first-seen order**. Cells: a
+scalar as typed below; a list → a list cell (`CubeCell[]`); a rows-of-objects key → a nested
+frame (the same `rowsToFrame` the Import Note uses); a block-style nested object → a nested
+frame once the parser learns the shape (the v1 parser work item; until then the raw YAML text
+as a string, never a dropped key). Column typing, first source that answers wins:
 
 1. an **mdbase type** whose `path_glob` matches the note (walk up from `folder` to the vault
    root for `mdbase.yaml`; needs `.yaml`/`.yml` in the fs allowlist): JSON Schema `string` /
    `number` / `integer` / `boolean` / `enum` → `string` / `number` / `number` / `logical` /
-   `string`; `format: date` / `date-time` → `date`; `array` of scalars → a list cell in the
-   cube, joined text in the frame; `array` of `object` → a nested frame in the cube (its
-   `properties` type the nested columns), raw text in the frame; `required` keys always
-   present;
+   `string`; `format: date` / `date-time` → `date`; `array` of scalars → a list cell;
+   `array` of `object` → a nested frame (its `properties` type the nested columns); `required`
+   keys always present;
 2. **`.obsidian/types.json`** (a direct read — the walk skips dot-folders but a read is
    allowed; `.json` is in scope): `text→string`, `number→number`, `checkbox→logical`,
    `date`/`datetime→date`, `list`/`tags`/`aliases→strlist`;
 3. the existing guesser, widened per column across rows (a column mixing numbers and text is
    `string`; all-null is `string`).
 
-A value the subset parser cannot read becomes the raw YAML text in a `string` cell, never a
-dropped key — the row stays addressable. ISO datetimes parse to
+ISO datetimes parse to
 fractional serials (fixing the Note path too, one parser). Desktop: a `FrameRef` through the
 backend seam like Local File; web: the node exists, shows the desktop-only hint, emits the
 last persisted preview (nothing — a vault read is desktop-only, unlike the Import Note's
-persisted body). Pure cores: `vaultFrame.ts` (`notesToFrame(files: {path, text, mtime}[],
+persisted body). Pure cores: `vaultFrame.ts` (`notesToCube(files: {path, text, mtime}[],
 types: ColumnTypes)`), `mdbaseTypes.ts` (schema → `FrontmatterFieldType`),
 `obsidianTypes.ts` (types.json → the same), each unit-tested off a fixture folder in
 `fixtures/vault/` (an mdbase collection, a plain folder, a folder with types.json).
+
+**A′. Flatten** (a cube verb in `nodes/cube.ts`, Add → Table verbs beside Unnest; the general
+gap this bundle exposes, useful with no vault in sight). In: `cube`. Out: `frame`. One rule
+per nested-column KIND, each an ArgSelect: **lists** → *Join* (items joined by a separator
+literal, default `", "`) / *Count* / *First* / *Drop*; **nested frames / cubes** → *Count* /
+*First row's first cell* / *Drop*. Scalar columns pass through typed. A list cell joined
+becomes `string`; Count becomes `number`. Pure `flattenCube()` beside `nestJoin` in
+`frameVerbs.ts`, tested on mixed cells (a list cell in a column that is scalar elsewhere
+widens the column to `string` under Join). A per-column override map (the Decision Matrix
+`normMap` pattern) is v2 if a folder mixes the two needs. **Why not a `flat` toggle on the
+reader** (a Cast-style in-place retype, `retypeReconciles`): kept as the fallback if the extra
+node annoys in practice; the verb is the honest, reusable form and the first cut ships only it.
 
 **B. Write Properties** (sink, Add → Connections beside Write File; Run-button only,
 `sinkRunButtonOnly`). Input: **`cube`** (a frame widens into it, so either reader output fits;
@@ -197,23 +209,23 @@ files — field mapping, recurrence expansion and `timeEntries` totals are plugi
 (`../out-of-scope.md` §6), and `timeEntries` is the nested block shape our parser can't read;
 A over the tasks folder stays the vault-closed fallback. One connection node, **TaskNotes**,
 with a provider selector (Settings gain `taskNotesUrl` default `http://localhost:8080` +
-`taskNotesToken`; `http://**` is already allowed): **Tasks** (`GET /api/tasks` paged; outputs
-**`frame`** — `path · title · status · priority · due · scheduled · projects · contexts · tags
-· timeEstimate · trackedMinutes · predecessors · archived` + user fields, lists joined `", "`,
-`predecessors` = `blockedBy` joined by task title, **exactly H6 Schedule's input** — and
-**`cube`** — the same rows with `projects · contexts · tags · blockedBy` as list cells and
-`timeEntries` (`start · end · minutes · description`) and `complete_instances` (`date`) as
-**nested frames**; a task IS a record with sub-tables, which is what the cube exists for),
-**Calendar events** (`frame`: `title · start · end · source`, window from two date inputs),
-**Stats** (`/api/stats` as scalars — KPI-shaped, deliberately not a one-row frame). No
-separate time-entries provider: **Unnest** the cube's `timeEntries` for the long form and
-**Cube Rollup** (sum `minutes`) is `trackedMinutes` recomputed. Pure core `taskNotesApi.ts`
-(paging + row/cube mapping over a fetch stub; one fixture per endpoint). What the tables
-unlock, ranked by what Bases cannot do:
+`taskNotesToken`; `http://**` is already allowed): **Tasks** (`GET /api/tasks` paged → one
+**`cube`**: `path · title · status · priority · due · scheduled · timeEstimate ·
+trackedMinutes · archived` + user fields as scalars, `projects · contexts · tags · blockedBy`
+as **list cells** (`blockedBy` by task title), `timeEntries` (`start · end · minutes ·
+description`) and `complete_instances` (`date`) as **nested frames** — a task IS a record with
+sub-tables, which is what the cube exists for), **Calendar events** (`frame`: `title · start ·
+end · source`, window from two date inputs), **Stats** (`/api/stats` as scalars — KPI-shaped,
+deliberately not a one-row frame). No separate time-entries provider: **Unnest** the cube's
+`timeEntries` for the long form and **Cube Rollup** (sum `minutes`) is `trackedMinutes`
+recomputed. **Flatten** (A′) with Join on `blockedBy` yields `predecessors` as `"A, B"` —
+**exactly H6 Schedule's input** — so nothing task-specific is needed for the flat path. Pure
+core `taskNotesApi.ts` (paging + cube mapping over a fetch stub; one fixture per endpoint).
+What the tables unlock, ranked by what Bases cannot do:
 
-- **F1 Schedule from dependencies.** Tasks → H6 Schedule (`../1.4-plan.md` § H6, now specced
-  to the row: Task · Duration · Predecessors + Start / Working days / Holidays → Start · Finish ·
-  Float · Critical + Project finish). Duration = `timeEstimate` ÷ an hours-per-day literal (a
+- **F1 Schedule from dependencies.** Tasks → Flatten → H6 Schedule (`../1.4-plan.md` § H6,
+  now specced to the row: Task · Duration · Predecessors + Start / Working days / Holidays →
+  Start · Finish · Float · Critical + Project finish). Duration = `timeEstimate` ÷ an hours-per-day literal (a
   Math node, or H6's own `hoursPerDay` if the author wants it on the card); then `PUT`
   `scheduled` back (F6). Bases formulas are per-row — a traversal is impossible there. Gate:
   the Track H pick; the feed ships without it. **Many projects at once:** Nest Join projects ×
@@ -275,7 +287,7 @@ disarmed-load rule for the writer, not this.
 **J. Headless seam** (what makes G's reverse path and the fixture tests real). A connection
 node fetches in the background through the Tauri bridges, so under `npm run run-graph` a Vault
 Folder or TaskNotes node emits nothing today. The readers' pure cores already take files /
-responses as data (`notesToTables(files)`, `taskNotesApi` over a fetch stub); the seam is a
+responses as data (`notesToCube(files)`, `taskNotesApi` over a fetch stub); the seam is a
 **file provider** the runner can supply: `run-graph <graph> --vault <path>` reads the vault
 with Node `fs` and hands each Vault Folder / Import Note its files; `--tasknotes <url>` does the
 same for the feed with Node `fetch`. Writers: `--run <node name>` arms and runs ONE named sink
@@ -296,10 +308,11 @@ actions, CloudEvents, hosted Connect. Wikilink resolution inside Note bodies and
 
 | Node | Kind · menu | In | Out | Init (persisted) | Pure core · test |
 |---|---|---|---|---|---|
-| Vault Folder | connection · Connections | — | `frame` (flat), `cube` (nested) | vault, folder, glob, includeBody, refreshMinutes | `vaultFrame.ts` (`notesToTables` → both projections from one parse), `mdbaseTypes.ts`, `obsidianTypes.ts` · `vaultFrame.test.ts` over `fixtures/vault/` |
+| Vault Folder | connection · Connections | — | `cube` ("Notes") | vault, folder, glob, includeBody, refreshMinutes | `vaultFrame.ts` (`notesToCube`), `mdbaseTypes.ts`, `obsidianTypes.ts` · `vaultFrame.test.ts` over `fixtures/vault/` |
+| Flatten | frame · Table verbs | `cube` | `frame` | listRule, nestedRule, separator | `flattenCube()` in `frameVerbs.ts` · `flatten.test.ts` |
 | Write Properties | sink · Connections | `cube` (frame widens) | `plan` frame | vault, keys, addMissing | `frontmatterPatch.ts` (+ nested frame → `- {k: v}` block) · `frontmatterPatch.test.ts` (round-trips: untouched bytes identical; cube → vault → cube equal) |
 | Write to Obsidian (+mode) | sink (exists) | `document` | — | + mode | `managedBlock.ts` · `managedBlock.test.ts` |
-| TaskNotes | connection · Connections | `from`, `to` (dates, Calendar provider only) | Tasks: `frame` + `cube`; Calendar: `frame`; Stats: scalars | provider, refreshMinutes | `taskNotesApi.ts` · `taskNotesApi.test.ts` (fixtures per endpoint) |
+| TaskNotes | connection · Connections | `from`, `to` (dates, Calendar provider only) | Tasks: `cube`; Calendar: `frame`; Stats: scalars | provider, refreshMinutes | `taskNotesApi.ts` · `taskNotesApi.test.ts` (fixtures per endpoint) |
 | Write Tasks | sink · Connections | `cube` (frame widens) | `plan` frame | mode (create / update), keys | shares `taskNotesApi.ts`; list cells → the API's arrays |
 | (CLI) `run-graph --vault --tasknotes --run` | — | — | — | — | `scripts/run-graph.test.ts` gains a vault-fixture case and a `--run` case against a temp copy |
 
@@ -310,8 +323,8 @@ unreachable vault/port with the reason in the status line, never a throw.
 
 ## Seeds
 
-Seeds must load on web with no vault, so each ships a **Frame Input snapshot in the exact
-shape the feed's `frame` emits** (a comment on the node: "replace me with a TaskNotes node";
+Seeds must load on web with no vault, so each ships a **Frame Input snapshot in the shape
+Flatten emits from the feed** (a comment on the node: "replace me with TaskNotes → Flatten";
 the nested shape is demonstrable with Build Cube + Nest Join if a seed needs it):
 **"Which task next?"** (F4: 12 tasks → Decision Matrix with priority / days-to-due / estimate →
 Score → bar chart, and a Write Properties node disarmed at the end) and, when H6 lands,
@@ -331,7 +344,7 @@ The fs allowlist change (`.yaml`/`.yml` read) is a one-line capability edit, doc
 
 ## Sequencing (dependency order)
 
-A → B → D → C → F (feed + F4/F3/F5 + F6) → I → J → E; F1 when H6 lands; G and H on hold. A alone is a
+A + A′ → B → D → C → F (feed + F4/F3/F5 + F6) → I → J → E; F1 when H6 lands; G and H on hold. A alone is a
 product ("your vault as a table"). A + B is the loop ("compute in Solenoid, see it in Bases").
 F is independent of B and C and could go first if the author's own use is task-shaped.
 
@@ -353,8 +366,9 @@ F is independent of B and C and could go first if the author's own use is task-s
    not a second node.
 6. **Import Note stays a Note** (item I) and borrows the refresh timer + watcher hook rather
    than becoming a connection node.
-7. **Readers emit `frame` + `cube`, writers take `cube`, and a sink's preview is a `plan`
-   frame.** Flat for the verbs, nested for what a frame cannot hold, and the plan is data the
+7. **Readers emit one `cube`, Flatten is the explicit way down, writers take `cube`, and a
+   sink's preview is a `plan` frame.** The nested form is the truth of a note folder; the flat
+   form is a named, configurable step the lattice already insists on; the plan is data the
    graph can inspect rather than a string on a card.
 
 ## Risks
