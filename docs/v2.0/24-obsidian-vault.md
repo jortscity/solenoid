@@ -10,6 +10,16 @@ states what stands.
 
 ## What stands today (pointers, not restatement)
 
+**Landed 2026-09-07** (the author promoted the bundle to the flagship track; each item's
+outcome is in `../node-coverage.md`, cited here by name): **A** Vault Folder → Cube (+ R3, the
+demo vault at `demo-vault/`), **A′** the row verbs take cubes, **B** Write Properties, **C** Write
+to Obsidian modes + templates (R1/R2), **D** Open in Obsidian (the stub note is in progress), **E**
+the vault watcher, **F** TaskNotes feed + **F6** Write Tasks (+ the `which-task-next` seed = F4),
+**I** the Import Note's reload cadence, **J** the headless seam, **R5** midnight rollover, and
+**H6 Schedule** cube-in/cube-out with the **Cube Input** literal source. Still open: D's stub
+note + `solenoid:` link, mdbase validation on write, `writeBase`, the F1 seed (needs a computed
+column over a cube: Duration = `timeEstimate` ÷ hours-per-day), G/H/K on hold.
+
 - **Import Obsidian Note** (`nodes/obsidian.ts`, a `NoteNode` subclass): one `.md` → its
   frontmatter keys as typed output sockets + a `document` output; manual Reload. **Write to
   Obsidian** (`obsidianMarkdown.ts` + `obsidianWrite.ts`): a Document → one overwritten `.md`
