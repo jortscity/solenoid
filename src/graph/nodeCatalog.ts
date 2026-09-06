@@ -19,7 +19,7 @@ import {
   ShuffleNode, NthElementNode, InterleaveNode, PadNode,
   StandardizeNode, CovarianceNode, FisherNode, BitwiseNode,
   DepreciationNode,
-  TvmNode, IpmtPpmtNode, NpvNode, IrrNode, MirrNode, CumPmtNode, AmortizationNode, ReturnsNode,
+  TvmNode, PaymentBreakdownNode, NpvNode, IrrNode, MirrNode, AmortizationNode, ReturnsNode,
   FvScheduleNode, IspmtNode, DollarNode, ProbNode,
   WeightedNode, BaseConvertNode,
   TextInputNode, TextTransformNode, TextLenNode, ConcatNode, TextSliceNode,
@@ -67,7 +67,7 @@ import {
   SUM_PRODUCT_OP_META, CORREL_OP_META, TWO_INPUT_MATH_OP_META,
   COVARIANCE_OP_META, FISHER_OP_META, BITWISE_OP_META,
   DEPRECIATION_OP_META,
-  IPMT_PPMT_OP_META, CUM_PMT_OP_META, DOLLAR_OP_META,
+  DOLLAR_OP_META,
   WEIGHTED_OP_META,
   TEXT_TRANSFORM_OP_META, TEXT_SLICE_OP_META, TEXT_FIND_OP_META, TEXT_AFTER_BEFORE_OP_META,
   BESSEL_OP_META, REGRESSION_OP_META,
@@ -77,7 +77,7 @@ import {
   type SumProductOp, type CorrelOp, type TwoInputMathOp,
   type CovarianceOp, type FisherOp, type BitwiseOp,
   type DepreciationOp,
-  type IpmtPpmtOp, type CumPmtOp, type DollarOp, type WeightedOp,
+  type DollarOp, type WeightedOp,
   type CouponOp, type DurationOp,
   type TextTransformOp, type TextSliceOp, type TextFindOp, type CharCodeOp, type TextAfterBeforeOp,
   type RomanArabicOp,
@@ -110,8 +110,6 @@ const covLeaf      = (op: CovarianceOp):   NodeCatalogEntry => ({ type: `cov-${o
 const fisherLeaf   = (op: FisherOp):       NodeCatalogEntry => ({ type: `fisher-${op}`,    label: FISHER_OP_META[op].label,         description: FISHER_OP_META[op].description,         create: () => new FisherNode({ op })        });
 const bitwiseLeaf  = (op: BitwiseOp):      NodeCatalogEntry => ({ type: `bitwise-${op}`,   label: BITWISE_OP_META[op].label,        description: BITWISE_OP_META[op].description,        create: () => new BitwiseNode({ op })       });
 const deprLeaf     = (op: DepreciationOp): NodeCatalogEntry => ({ type: `depr-${op}`,      label: DEPRECIATION_OP_META[op].label,   description: DEPRECIATION_OP_META[op].description,   create: () => new DepreciationNode({ op })  });
-const ipmtPpmtLeaf = (op: IpmtPpmtOp):    NodeCatalogEntry => ({ type: `ipmt-${op}`,      label: IPMT_PPMT_OP_META[op].label,      description: IPMT_PPMT_OP_META[op].description,      create: () => new IpmtPpmtNode({ op })      });
-const cumPmtLeaf   = (op: CumPmtOp):       NodeCatalogEntry => ({ type: `cumpmt-${op}`,    label: CUM_PMT_OP_META[op].label,        description: CUM_PMT_OP_META[op].description,        create: () => new CumPmtNode({ op })        });
 const regressionLeaf = (op: RegressionOp): NodeCatalogEntry => ({ type: `regression-${op}`,label: REGRESSION_OP_META[op].label,     description: REGRESSION_OP_META[op].description,     keywords: "slope", create: () => new RegressionNode({ op })    });
 // One Hypothesis Test node; the leaf types keep their historical spellings (nodeExcel keys).
 const TEST_LEAF_TYPE: Record<HypothesisTestOp, string> = {
@@ -674,11 +672,10 @@ export const NODE_CATALOG: CatalogEntry[] = [
         ],
       },
       {
-        type: "category", label: "Periodic payment breakdown", description: "Interest vs. principal split for a single period.",
-        children: [
-          { type: "pair", children: [ipmtPpmtLeaf("ipmt"), ipmtPpmtLeaf("ppmt")] },
-          { type: "pair", children: [cumPmtLeaf("cumipmt"), cumPmtLeaf("cumprinc")] },
-        ],
+        type: "payment-breakdown", label: "Payment Breakdown",
+        description: "Splits a loan payment into interest and principal, for one period or cumulatively across a range of periods. Excel: `IPMT`, `PPMT`, `CUMIPMT`, `CUMPRINC`.",
+        create: () => new PaymentBreakdownNode(),
+        keywords: "payment breakdown ipmt ppmt cumipmt cumprinc interest principal loan amortization period cumulative range",
       },
       {
         type: "category", label: "Cash flow analysis", description: "NPV, IRR, MIRR for irregular cash flows.",

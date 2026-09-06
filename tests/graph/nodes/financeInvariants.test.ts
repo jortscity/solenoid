@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   BondPricingNode, DiscountSecurityNode, DurationNode, CouponNode, AccruedInterestNode,
+  PaymentBreakdownNode,
 } from "../../../src/graph/nodes/finance";
 import { vdb, accrintM } from "../../../src/graph/nodes/financeOps";
 import { parseDateToSerial } from "../../../src/graph/nodes/date";
@@ -226,6 +227,32 @@ describe("ONE Accrued Interest card: frequency is the periodic form's socket", (
     const issue = d("2023-07-15"), settle = d("2024-01-15");
     const viaNode = new AccruedInterestNode({ op: "maturity" }).data({ issue: [issue], settle: [settle], rate: [0.06], par: [1000], basis: [0] }).result;
     expect(viaNode).toBeCloseTo(accrintM(issue, settle, 0.06, 1000, 0)!, 12);
+  });
+});
+
+describe("ONE Payment Breakdown card: Span drives the socket reshape", () => {
+  it("One period ↔ Range keeps the shared rate/nper/pv (cables and literals), swaps per/fv for start/end", () => {
+    const node = new PaymentBreakdownNode({ op: "ipmt" });
+    expect(Object.keys(node.inputs)).toEqual(["rate", "per", "nper", "pv", "fv"]);
+    const keptRate = node.inputs.rate, keptNper = node.inputs.nper, keptPv = node.inputs.pv;
+    // Share flip stays within the pair — no socket change.
+    expect(node.keysDroppedBySwitch("ppmt")).toEqual([]);
+    // Span flip to the Range pair drops per/fv, adds start/end.
+    expect(node.keysDroppedBySwitch("cumipmt").sort()).toEqual(["fv", "per"]);
+    node.setOp("cumipmt");
+    expect(Object.keys(node.inputs)).toEqual(["rate", "nper", "pv", "start", "end"]);
+    expect(node.inputs.rate).toBe(keptRate); // shared sockets are the SAME objects (cables ride along)
+    expect(node.inputs.nper).toBe(keptNper);
+    expect(node.inputs.pv).toBe(keptPv);
+    node.setOp("ipmt");
+    expect(Object.keys(node.inputs)).toEqual(["rate", "per", "nper", "pv", "fv"]);
+  });
+  it("each op reads only its own inputs: the same rate/nper/pv, different span keys", () => {
+    const single = new PaymentBreakdownNode({ op: "ipmt" }).data({ rate: [0.05], per: [1], nper: [12], pv: [1000], fv: [0] });
+    expect(single.result).toBeCloseTo(-50, 2);
+    // The range op reads start/end, not per/fv — CUMPRINC over the full term repays the principal.
+    const range = new PaymentBreakdownNode({ op: "cumprinc" }).data({ rate: [0.05], nper: [12], pv: [1000], start: [1], end: [12] });
+    expect(range.result).toBeCloseTo(-1000, 6);
   });
 });
 

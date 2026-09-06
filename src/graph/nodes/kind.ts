@@ -32,7 +32,7 @@ import {
   StandardizeNode, CovarianceNode, FisherNode,
   RegressionNode, ForecastNode, EtsForecastNode, DecomposeNode, OdeIntegrateNode, FitDistributionNode, ModeNode, TrimMeanNode, FrequencyNode, ConfidenceNode,
 } from "./stats";
-import { BitwiseNode, DepreciationNode, TvmNode, IpmtPpmtNode, NpvNode, IrrNode, MirrNode, CumPmtNode, AmortizationNode, ReturnsNode } from "./finance";
+import { BitwiseNode, DepreciationNode, TvmNode, PaymentBreakdownNode, NpvNode, IrrNode, MirrNode, AmortizationNode, ReturnsNode } from "./finance";
 import { DisplayNode, AlertNode, RandBetweenNode } from "./display";
 import { DistributionNode } from "./distribution";
 import { ConduitNode } from "./conduit";
@@ -129,9 +129,9 @@ export function nodeKindOf(node: ClassicPreset.Node): NodeKind {
     node instanceof SeriesSumNode || node instanceof MultinomialNode
   ) return "math";
   if (
-    node instanceof TvmNode || node instanceof IpmtPpmtNode ||
+    node instanceof TvmNode || node instanceof PaymentBreakdownNode ||
     node instanceof NpvNode || node instanceof IrrNode || node instanceof MirrNode ||
-    node instanceof CumPmtNode || node instanceof AmortizationNode || node instanceof ReturnsNode
+    node instanceof AmortizationNode || node instanceof ReturnsNode
   ) return "math";
   if (
     node instanceof DistributionNode

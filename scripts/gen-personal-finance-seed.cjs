@@ -278,7 +278,7 @@ n("expr-mnper","ExpressionNode", 1700, 1420, { label: "Payments", expr: "term * 
 n("tvm-pmt",  "TvmNode",         1960,  980, { label: "Monthly payment", paymentTiming: "end" });
 n("expr-absp","ExpressionNode",  2240,  980, { label: "Payment (positive)", expr: "-pmt" });
 n("disp-pmt", "DisplayNode",     2520,  980, { label: "Monthly payment" });
-n("cumipmt",  "CumPmtNode",      1960, 1280, { label: "Interest (signed)", op: "cumipmt", paymentTiming: "end" });
+n("cumipmt",  "PaymentBreakdownNode", 1960, 1280, { label: "Interest (signed)", op: "cumipmt", paymentTiming: "end" });
 n("expr-absint","ExpressionNode",2240, 1280, { label: "Total interest", expr: "-i" });
 n("disp-int", "DisplayNode",     2520, 1280, { label: "Total interest" });
 n("expr-aff", "ExpressionNode",  2240, 1540, { label: "Affordable (28%)", expr: "0.28 * take" });

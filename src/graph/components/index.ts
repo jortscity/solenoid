@@ -104,11 +104,10 @@ export { ConfidenceComponent } from "./ConfidenceNode";
 // ─── Finance ──────────────────────────────────────────────────────────────────
 export { DepreciationComponent } from "./DepreciationNode";
 export { TvmComponent } from "./TvmNode";
-export { IpmtPpmtComponent } from "./IpmtPpmtNode";
+export { PaymentBreakdownComponent } from "./PaymentBreakdownNode";
 export { NpvComponent } from "./NpvNode";
 export { IrrComponent } from "./IrrNode";
 export { MirrComponent } from "./MirrNode";
-export { CumPmtComponent } from "./CumPmtNode";
 export { FvScheduleComponent } from "./FvScheduleNode";
 export { IspmtComponent } from "./IspmtNode";
 export { DollarComponent } from "./DollarNode";
