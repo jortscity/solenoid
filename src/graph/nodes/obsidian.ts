@@ -7,7 +7,7 @@ import { NoteNode } from "./annotation";
 import { type FrontmatterFieldType } from "../noteFrontmatter";
 import { isDocumentValue, type DocumentValue } from "../documentValue";
 import { isSolError, type SolError } from "../errorValue";
-import { isDesktop } from "../fileBridge";
+import { hasFs } from "../fileBridge";
 import { settingsStore } from "../settingsStore";
 
 import { getOwningEditor } from "../activeGraph";
@@ -112,7 +112,7 @@ export class WriteObsidianNode extends ClassicPreset.Node {
   async run(): Promise<void> {
     if (this.status === "writing") return;
     if (!this.enabled) { this.status = "error"; this.statusMessage = "Disabled. Arm it first."; return; }
-    if (!isDesktop()) { this.status = "error"; this.statusMessage = "Desktop app only"; return; }
+    if (!hasFs()) { this.status = "error"; this.statusMessage = "Desktop app only"; return; }
     const vault = settingsStore.get("obsidianVault").trim();
     if (!vault) { this.status = "error"; this.statusMessage = "Set the vault folder in Settings"; return; }
     // {{daily}} needs the Daily notes plugin's config; absent → Obsidian's defaults.

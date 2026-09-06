@@ -2,7 +2,7 @@
 // LIVE svg, so this runs only from the Write node's Run click.
 
 import {
-  isDesktop, joinPath, ensureDir, writeTextFilePath, writeBinaryFilePath, readTextFilePath,
+  hasFs, joinPath, ensureDir, writeTextFilePath, writeBinaryFilePath, readTextFilePath,
 } from "./fileBridge";
 import { nodeChartSvg, serializeSvgWithComputedStyles } from "./canvasCapture";
 import { dataUrlToBytes, sanitizeName } from "./imageAssets";
@@ -110,7 +110,7 @@ export interface WriteVaultResult {
 /** Desktop only — THROWS off-desktop (the node guards first); overwrites an existing
  *  note of the same name. */
 export async function writeDocumentToVault(doc: DocumentValue, opts: WriteVaultOptions): Promise<WriteVaultResult> {
-  if (!isDesktop()) throw new Error("Desktop app only");
+  if (!hasFs()) throw new Error("Desktop app only");
   // Drop empty / "." / ".." segments so a stray ".." can't climb out of the vault.
   const cleanParts = (p: string) =>
     p.split("/").map((s) => s.trim()).filter((s) => s && s !== "." && s !== "..");

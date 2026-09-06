@@ -13,6 +13,51 @@ export function isDesktop(): boolean {
   return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 }
 
+// ─── The headless seam (bundle 24 J) ─────────────────────────────────────────────
+// The vault readers / writers go through these few file calls. On desktop they are
+// the Tauri plugins; a headless runner (scripts/run-graph.ts --vault) installs a Node
+// provider instead, so the same nodes read and write a vault with no window at all.
+// Dialogs and the OS opener stay desktop-only.
+
+export interface FsProvider {
+  readTextFile(path: string): Promise<string>;
+  readDir(path: string): Promise<{ name: string; isDirectory: boolean; isFile: boolean }[]>;
+  writeTextFile(path: string, content: string): Promise<void>;
+  rename(from: string, to: string): Promise<void>;
+  mkdir(path: string, recursive: boolean): Promise<void>;
+  exists(path: string): Promise<boolean>;
+  stat(path: string): Promise<{ mtimeMs: number | null; birthtimeMs: number | null }>;
+  join(...parts: string[]): Promise<string>;
+  dirname(path: string): Promise<string>;
+  readBinary(path: string): Promise<Uint8Array>;
+  writeBinary(path: string, bytes: Uint8Array): Promise<void>;
+}
+
+let _provider: FsProvider | null = null;
+
+/** Install (or clear, with null) the file provider a headless run uses. */
+export function setFsProvider(p: FsProvider | null): void { _provider = p; }
+
+/** Can this process touch files — the desktop shell, or an installed provider? */
+export function hasFs(): boolean { return isDesktop() || _provider !== null; }
+
+const tauriFs: FsProvider = {
+  readTextFile: (path) => readTextFile(path),
+  readDir: async (path) => (await readDir(path)).map((e) => ({ name: e.name, isDirectory: e.isDirectory, isFile: e.isFile })),
+  writeTextFile: (path, content) => writeTextFile(path, content),
+  rename: (from, to) => rename(from, to),
+  mkdir: (path, recursive) => mkdir(path, { recursive }),
+  exists: (path) => exists(path),
+  stat: async (path) => { const i = await stat(path); return { mtimeMs: i.mtime ? i.mtime.getTime() : null, birthtimeMs: i.birthtime ? i.birthtime.getTime() : null }; },
+  join: (...parts) => join(...parts),
+  dirname: (path) => dirname(path),
+  readBinary: (path) => readFile(path),
+  writeBinary: (path, bytes) => writeFile(path, bytes),
+};
+
+/** The live provider: the installed one, else Tauri's. */
+function fs(): FsProvider { return _provider ?? tauriFs; }
+
 /** Open the OS folder picker; returns the chosen absolute path, or null if the
  *  user canceled (or we're not on desktop). */
 export async function pickFolderDialog(): Promise<string | null> {
@@ -52,17 +97,17 @@ export function listMarkdownFiles(folder: string): Promise<string[]> {
 /** Vault-relative subfolder paths under `root` (POSIX-style, sorted), EXCLUDING the
  *  root itself; dot-folders skipped and depth bounded. Desktop only. */
 export async function listVaultFolders(root: string, maxDepth = 6): Promise<string[]> {
-  if (!isDesktop() || !root) return [];
+  if (!hasFs() || !root) return [];
   const out: string[] = [];
   async function walk(abs: string, rel: string, depth: number): Promise<void> {
     if (depth > maxDepth) return;
     let entries;
-    try { entries = await readDir(abs); } catch { return; }
+    try { entries = await fs().readDir(abs); } catch { return; }
     for (const e of entries) {
       if (!e.isDirectory || e.name.startsWith(".")) continue;
       const childRel = rel ? `${rel}/${e.name}` : e.name;
       out.push(childRel);
-      await walk(await join(abs, e.name), childRel, depth + 1);
+      await walk(await fs().join(abs, e.name), childRel, depth + 1);
     }
   }
   await walk(root, "", 0);
@@ -72,16 +117,16 @@ export async function listVaultFolders(root: string, maxDepth = 6): Promise<stri
 /** Recursively collect the vault-relative `.md` file paths under `root` (POSIX-style,
  *  sorted). Same dot-folder skip + depth bound as listVaultFolders. Desktop only. */
 export async function listVaultMarkdownFiles(root: string, maxDepth = 6): Promise<string[]> {
-  if (!isDesktop() || !root) return [];
+  if (!hasFs() || !root) return [];
   const out: string[] = [];
   async function walk(abs: string, rel: string, depth: number): Promise<void> {
     if (depth > maxDepth) return;
     let entries;
-    try { entries = await readDir(abs); } catch { return; }
+    try { entries = await fs().readDir(abs); } catch { return; }
     for (const e of entries) {
       if (e.name.startsWith(".")) continue;
       const childRel = rel ? `${rel}/${e.name}` : e.name;
-      if (e.isDirectory) await walk(await join(abs, e.name), childRel, depth + 1);
+      if (e.isDirectory) await walk(await fs().join(abs, e.name), childRel, depth + 1);
       else if (/\.md$/i.test(e.name)) out.push(childRel);
     }
   }
@@ -91,22 +136,18 @@ export async function listVaultMarkdownFiles(root: string, maxDepth = 6): Promis
 
 /** Read a vault-relative file ("notes/weekly.md") as text. Desktop only. */
 export async function readVaultFile(root: string, relPath: string): Promise<string> {
-  const path = await join(root, ...relPath.split("/"));
-  return readTextFile(path);
+  const path = await fs().join(root, ...relPath.split("/"));
+  return fs().readTextFile(path);
 }
 
 /** A vault-relative file's modified + created times, in epoch ms (null when the
  *  platform omits one, or off desktop). Used for the Vault Folder cube's
  *  `modified` / `created` columns (needs `fs:allow-stat`). */
 export async function statVaultFile(root: string, relPath: string): Promise<{ mtimeMs: number | null; birthtimeMs: number | null } | null> {
-  if (!isDesktop()) return null;
+  if (!hasFs()) return null;
   try {
-    const path = await join(root, ...relPath.split("/"));
-    const info = await stat(path);
-    return {
-      mtimeMs: info.mtime ? info.mtime.getTime() : null,
-      birthtimeMs: info.birthtime ? info.birthtime.getTime() : null,
-    };
+    const path = await fs().join(root, ...relPath.split("/"));
+    return await fs().stat(path);
   } catch {
     return null;
   }
@@ -114,7 +155,7 @@ export async function statVaultFile(root: string, relPath: string): Promise<{ mt
 
 /** Read an absolute path as text (desktop only). */
 export async function readTextFilePath(path: string): Promise<string> {
-  return readTextFile(path);
+  return fs().readTextFile(path);
 }
 
 /** Temp + rename so a crash mid-write can't destroy the previous good file; falls
@@ -122,10 +163,10 @@ export async function readTextFilePath(path: string): Promise<string> {
 async function writeTextFileAtomic(path: string, content: string): Promise<void> {
   const tmp = `${path}.tmp`;
   try {
-    await writeTextFile(tmp, content);
-    await rename(tmp, path);
+    await fs().writeTextFile(tmp, content);
+    await fs().rename(tmp, path);
   } catch {
-    await writeTextFile(path, content);
+    await fs().writeTextFile(path, content);
   }
 }
 
@@ -135,27 +176,29 @@ export async function writeTextFilePath(path: string, content: string): Promise<
 }
 
 export function dirOfPath(path: string): Promise<string> {
-  return dirname(path);
+  return fs().dirname(path);
 }
 
 export function joinPath(...parts: string[]): Promise<string> {
-  return join(...parts);
+  return fs().join(...parts);
 }
 
 export async function pathExists(path: string): Promise<boolean> {
-  return exists(path);
+  try { return await fs().exists(path); } catch { return false; }
 }
 
 /** Create a directory (no-op if it already exists). */
 export async function ensureDir(path: string): Promise<void> {
-  if (!(await exists(path))) await mkdir(path, { recursive: true });
+  if (!(await pathExists(path))) await fs().mkdir(path, true);
 }
 
 export function readBinaryFilePath(path: string): Promise<Uint8Array> {
+  if (_provider) return _provider.readBinary(path);
   return readFile(path);
 }
 
 export function writeBinaryFilePath(path: string, bytes: Uint8Array): Promise<void> {
+  if (_provider) return _provider.writeBinary(path, bytes);
   return writeFile(path, bytes);
 }
 

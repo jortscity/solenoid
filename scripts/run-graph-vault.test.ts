@@ -1,0 +1,49 @@
+import { describe, it, expect, afterEach } from "vitest";
+import { mkdtempSync, cpSync, readFileSync, existsSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { runGraph } from "./run-graph";
+import { setFsProvider } from "../src/graph/fileBridge";
+import { isCubeValue, type CubeValue } from "../src/graph/frame";
+
+// Bundle 24 J — the headless seam: `run-graph --vault <path>` installs a Node file
+// provider behind fileBridge so the Obsidian nodes read a vault with no window, and
+// `--run <name>` arms and runs ONE named sink (the Run button's headless equivalent,
+// sinkRunButtonOnly). The demo vault is the fixture; a sink writes into a temp COPY.
+
+const DEMO = path.resolve(__dirname, "..", "demo-vault");
+let tmp: string | null = null;
+afterEach(() => { setFsProvider(null); if (tmp) { rmSync(tmp, { recursive: true, force: true }); tmp = null; } });
+
+describe("run-graph --vault", () => {
+  it("a Vault Folder node reads the demo vault headlessly — rows per note, frontmatter columns", async () => {
+    const out = await runGraph(
+      { nodes: [{ id: "v", type: "VaultFolderNode", init: { label: "Projects", folder: "Projects" } }], connections: [] },
+      { vault: DEMO },
+    );
+    const cube = (out["Projects"] as { cube: CubeValue }).cube;
+    expect(isCubeValue(cube)).toBe(true);
+    expect(cube.columns[0]?.cells.length ?? 0).toBeGreaterThan(0);
+    const names = cube.columns.map((c) => c.name);
+    expect(names).toContain("name");
+    expect(names).toContain("status");
+  }, 30_000);
+
+  it("--run arms and runs a named Write to Obsidian into a temp copy of the vault; nothing runs without it", async () => {
+    tmp = mkdtempSync(path.join(tmpdir(), "solenoid-vault-"));
+    cpSync(DEMO, tmp, { recursive: true });
+    const graph = {
+      nodes: [
+        { id: "n", type: "NoteNode", init: { label: "Memo", body: "# Hello\n\nfrom the CLI" } },
+        { id: "w", type: "WriteObsidianNode", init: { label: "Write memo", fileName: "CLI memo", subfolder: "Notes" } },
+      ],
+      connections: [{ source: "n", sourceOutput: "document", target: "w", targetInput: "in" }],
+    };
+    await runGraph(graph, { vault: tmp });
+    expect(existsSync(path.join(tmp, "Notes", "CLI memo.md"))).toBe(false); // wiring never writes
+    await runGraph(graph, { vault: tmp, run: "Write memo" });
+    const written = readFileSync(path.join(tmp, "Notes", "CLI memo.md"), "utf8");
+    expect(written).toContain("# Hello");
+    await expect(runGraph(graph, { vault: tmp, run: "No such sink" })).rejects.toThrow(/no sink named/);
+  }, 30_000);
+});
