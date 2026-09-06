@@ -1,16 +1,21 @@
 import { ClassicPreset } from "rete";
-import { frameOut, strListOut, strIn, numIn, numOut, strOut, dateOut, dateListOut, readInput } from "./shared";
+import { frameOut, strListOut, strIn, numIn, numOut, strOut, dateOut, dateListOut, cubeOut, readInput } from "./shared";
 import { geocodeUrl, parseGeocode, pickGeocodeMatch, type GeocodeMatch } from "../geocodeProvider";
 import { weatherUrl, parseWeather, type TempUnit, type WeatherResult } from "../weatherProvider";
 import { holidaysUrl, parseHolidays, filterHolidays, holidaysFrame, daysToNextHoliday, type Holiday } from "../holidaysProvider";
 import { fxLatestUrl, parseFxRate, type FxRate } from "../fxProvider";
+import { notesToCube, type VaultNote, type VaultTypeSources } from "../vaultCube";
+import { parseMdbaseCollection, mdbaseTypeFor, type MdbaseCollection } from "../mdbaseTypes";
+import { parseObsidianTypes } from "../obsidianTypes";
+import { parseDailyNotesConfig } from "../dailyNotesConfig";
+import { type TypeMap } from "../vaultTypes";
 import { applyFcUnit } from "../unitBridge";
 import { type Shape } from "../frameShape";
 import { connectionStore, scheduleConnectionRecalc, requestNetwork } from "../connectionStore";
 import { settingsStore } from "../settingsStore";
-import { isDesktop, readFileText } from "../fileBridge";
+import { isDesktop, readFileText, joinPath, listVaultMarkdownFiles, listMarkdownFiles, readVaultFile, statVaultFile } from "../fileBridge";
 import { fetchText } from "../httpBridge";
-import { frameFromCells, frameFromRecords, frameFromRows, frameFromColumnar, frameRowCount, type FrameValue } from "../frame";
+import { frameFromCells, frameFromRecords, frameFromRows, frameFromColumnar, frameRowCount, cubeRowCount, type FrameValue, type CubeValue } from "../frame";
 import { parseCsvRows } from "../csv";
 import { engineAvailable, ipcInvoke } from "../ipcBridge";
 import { readCsvFrame, dropFrameRef, collectPreview, type FrameRef, type FrameHandle } from "../frameBackend";
@@ -690,6 +695,174 @@ export class FxNode extends ClassicPreset.Node {
     } catch (e) {
       this.cached = null;
       connectionStore.setState(this.id, { status: "error", message: e instanceof Error ? e.message : String(e) });
+    }
+  }
+}
+
+// ─── VAULT FOLDER (an Obsidian folder of notes → ONE cube) ───────────────────────
+// Bundle 24 item A: one row per note, the Bases file.* built-ins + the frontmatter union,
+// with lists and nested tables riding in cube cells. Reads local files (desktop only, no
+// network gate); the parse + typing is the pure vaultCube core, the mdbase / types.json /
+// daily-notes sources are read here. Rows are never saved; reopening re-reads the vault.
+
+/** A file-name glob (`*.md`, `2026-*`) → a case-insensitive regex over the base name. */
+function nameGlobToRegExp(glob: string): RegExp {
+  let re = "";
+  for (const ch of glob) {
+    if (ch === "*") re += ".*";
+    else if (ch === "?") re += ".";
+    else if (".+^${}()|[]\\".includes(ch)) re += "\\" + ch;
+    else re += ch;
+  }
+  return new RegExp(`^${re}$`, "i");
+}
+
+/** The mdbase hints for a note, resolving which discovered collection contains it (the
+ *  longest folder prefix wins) and matching its path within that collection. */
+function mdbaseHintFor(collections: Map<string, MdbaseCollection>, folder: string, vaultRelPath: string): TypeMap {
+  if (collections.size === 0) return {};
+  const readRootRel = folder && vaultRelPath.startsWith(`${folder}/`) ? vaultRelPath.slice(folder.length + 1) : vaultRelPath;
+  let best: { key: string; coll: MdbaseCollection } | null = null;
+  for (const [key, coll] of collections) {
+    const inside = key === "" || readRootRel === key || readRootRel.startsWith(`${key}/`);
+    if (!inside) continue;
+    if (!best || key.length > best.key.length) best = { key, coll };
+  }
+  if (!best) return {};
+  const collRel = best.key ? readRootRel.slice(best.key.length + 1) : readRootRel;
+  return mdbaseTypeFor(best.coll, collRel);
+}
+
+export class VaultFolderNode extends ClassicPreset.Node {
+  static socketDocs: Record<string, string> = {
+    cube: "One row per note: the file columns, then every frontmatter key. Lists and nested tables ride in the cells. Rows are never saved into the project file; reopening the document re-reads the vault.",
+  };
+  label: string;
+  /** Absolute vault path, per node — defaults from the obsidianVault setting at creation. */
+  vault: string;
+  /** Vault-relative subfolder ("" = the whole vault). */
+  folder: string;
+  /** A file-name glob to keep ("" = every note). */
+  glob: string;
+  /** Add a `body` column carrying each note's markdown. */
+  includeBody: boolean;
+  /** Moment-token file-name format → the `date` column (R3); "" = the daily-notes default
+   *  when the folder is the daily-notes folder, else no date. */
+  nameFormat: string;
+  /** Minutes, 0 = off — the component runs the timer. */
+  refreshMinutes: number;
+  width = 260; height = 240;
+  /** Read by the component's preview; never persisted. */
+  cached: CubeValue | null = null;
+  private _lastKey: string | undefined;
+
+  constructor(init?: { label?: string; vault?: string; folder?: string; glob?: string; includeBody?: boolean; nameFormat?: string; refreshMinutes?: number }) {
+    super("VaultFolder");
+    this.label = init?.label ?? "Vault Folder";
+    this.vault = init?.vault ?? settingsStore.get("obsidianVault") ?? "";
+    this.folder = init?.folder ?? "";
+    this.glob = init?.glob ?? "";
+    this.includeBody = init?.includeBody ?? false;
+    this.nameFormat = init?.nameFormat ?? "";
+    this.refreshMinutes = init?.refreshMinutes ?? 0;
+    this.addOutput("cube", cubeOut("Notes"));
+  }
+
+  data(): { cube: CubeValue | null } {
+    const key = connectionStore.key(this.id, `${this.vault} ${this.folder} ${this.glob} ${this.nameFormat} ${this.includeBody ? 1 : 0}`);
+    if (key !== this._lastKey) {
+      this._lastKey = key;
+      if (!isDesktop()) {
+        this.cached = null;
+        connectionStore.setState(this.id, { status: "error", message: "Reading a vault is available in the desktop app only" });
+      } else if (this.vault.trim() === "") {
+        this.cached = null;
+        connectionStore.setState(this.id, { status: "idle" });
+      } else {
+        void this.load().then(() => scheduleConnectionRecalc());
+      }
+    }
+    return { cube: this.cached };
+  }
+
+  private async load(): Promise<void> {
+    connectionStore.setState(this.id, { status: "loading" });
+    try {
+      const vault = this.vault.trim();
+      const folder = this.folder.trim().replace(/^\/+|\/+$/g, "");
+      const readRoot = folder ? await joinPath(vault, ...folder.split("/")) : vault;
+      const globRe = this.glob.trim() ? nameGlobToRegExp(this.glob.trim()) : null;
+      // Skip mdbase `_types` folders — those are schema files, not records.
+      let files = (await listVaultMarkdownFiles(readRoot)).filter((p) => !p.split("/").includes("_types"));
+      if (globRe) files = files.filter((p) => globRe.test(p.split("/").pop() ?? p));
+
+      const rel = (p: string) => (folder ? `${folder}/${p}` : p);
+      const notes: VaultNote[] = [];
+      for (const f of files) {
+        const text = await readVaultFile(readRoot, f);
+        const st = await statVaultFile(readRoot, f);
+        notes.push({ path: rel(f), text, mtimeMs: st?.mtimeMs ?? null, birthtimeMs: st?.birthtimeMs ?? null });
+      }
+
+      const collections = await this.discoverMdbase(readRoot, files);
+      const obsidian = await this.readObsidianTypes(vault);
+      const sources: VaultTypeSources = { mdbaseFor: (p) => mdbaseHintFor(collections, folder, p), obsidian };
+      const nameFormat = this.nameFormat.trim() || (await this.defaultNameFormat(vault, folder));
+      const cube = notesToCube(notes, sources, { nameFormat, includeBody: this.includeBody });
+
+      this.cached = cube;
+      connectionStore.setState(this.id, { status: "ok", rows: cubeRowCount(cube), cols: cube.columns.length, fetchedAt: Date.now() });
+    } catch (e) {
+      this.cached = null;
+      connectionStore.setState(this.id, { status: "error", message: e instanceof Error ? e.message : String(e) });
+    }
+  }
+
+  /** Every mdbase collection under `readRoot`, keyed by its folder (relative to readRoot). */
+  private async discoverMdbase(readRoot: string, files: string[]): Promise<Map<string, MdbaseCollection>> {
+    const folders = new Set<string>([""]);
+    for (const f of files) {
+      let seg = f.includes("/") ? f.slice(0, f.lastIndexOf("/")) : "";
+      while (seg) {
+        folders.add(seg);
+        seg = seg.includes("/") ? seg.slice(0, seg.lastIndexOf("/")) : "";
+      }
+    }
+    const out = new Map<string, MdbaseCollection>();
+    for (const folder of folders) {
+      let yamlText: string;
+      try {
+        yamlText = await readVaultFile(readRoot, folder ? `${folder}/mdbase.yaml` : "mdbase.yaml");
+      } catch {
+        continue; // not a collection
+      }
+      let typeTexts: string[] = [];
+      try {
+        const typesDir = folder ? await joinPath(readRoot, ...folder.split("/"), "_types") : await joinPath(readRoot, "_types");
+        const names = await listMarkdownFiles(typesDir);
+        typeTexts = await Promise.all(names.map((n) => readFileText(typesDir, n)));
+      } catch {
+        typeTexts = [];
+      }
+      out.set(folder, parseMdbaseCollection(yamlText, typeTexts));
+    }
+    return out;
+  }
+
+  private async readObsidianTypes(vault: string): Promise<TypeMap> {
+    try {
+      return parseObsidianTypes(await readVaultFile(vault, ".obsidian/types.json"));
+    } catch {
+      return {};
+    }
+  }
+
+  private async defaultNameFormat(vault: string, folder: string): Promise<string> {
+    try {
+      const cfg = parseDailyNotesConfig(await readVaultFile(vault, ".obsidian/daily-notes.json"));
+      return cfg.folder === folder ? cfg.format : "";
+    } catch {
+      return "";
     }
   }
 }

@@ -182,3 +182,23 @@
   height: 160px;
   image-rendering: pixelated;
 }
+
+/* Vault Folder: the vault-path chip + its Choose button. */
+.sol-conn__vault {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sol-conn__chip {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 2px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

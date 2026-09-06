@@ -10,11 +10,12 @@ import type {
   WeatherNode as WeatherNodeType,
   HolidaysNode as HolidaysNodeType,
   FxNode as FxNodeType,
+  VaultFolderNode as VaultFolderNodeType,
 } from "../rete-nodes";
 import { processGraph } from "../process";
 import { connectionStore, refreshConnection, type ConnectionState } from "../connectionStore";
 import { settingsStore } from "../settingsStore";
-import { isDesktop, listLocalFiles } from "../fileBridge";
+import { isDesktop, listLocalFiles, pickFolderDialog, baseNameOf } from "../fileBridge";
 import { apiKeyStore } from "../apiKeyStore";
 import { PROVIDER_LIST, getProvider, type ProviderId } from "../dataProviders";
 import { FrameDisplay } from "./FrameDisplay";
@@ -663,6 +664,93 @@ export function FxComponent({ data, emit }: NodeProps<FxNodeType>) {
           { key: "asof",      label: "AS OF", value: data.cached?.date || null },
         ]}
       />
+    </NodeShell>
+  );
+}
+
+// ─── VAULT FOLDER ────────────────────────────────────────────────────────────────
+// An Obsidian folder → one cube. The vault is a per-node path (a chip, defaulting from
+// Settings ▸ Obsidian); folder / glob / name-format / include-body commit on blur/Enter.
+export function VaultFolderComponent({ data, emit }: NodeProps<VaultFolderNodeType>) {
+  useSyncExternalStore(connectionStore.subscribe, connectionStore.version); // fill the preview when a read lands
+  const [folder, setFolder] = useState(data.folder);
+  const [glob, setGlob] = useState(data.glob);
+  const [nameFormat, setNameFormat] = useState(data.nameFormat);
+  const [minutes, setMinutes] = useState(data.refreshMinutes);
+  const desktop = isDesktop();
+  useAutoRefresh(data.id, minutes);
+  useEffect(() => { setFolder(data.folder); }, [data.folder]);
+
+  async function chooseVault() {
+    const picked = await pickFolderDialog();
+    if (picked && picked !== data.vault) { data.vault = picked; void processGraph(); }
+  }
+  function commitField(next: string, current: string, set: (v: string) => void, apply: (v: string) => void) {
+    const v = next.trim();
+    set(v);
+    if (v !== current) { apply(v); void processGraph(); }
+  }
+
+  const cube = data.cached;
+  const cols = cube?.columns.map((c) => c.name) ?? [];
+
+  return (
+    <NodeShell node={data} emit={emit}>
+      <div className="sol-conn">
+        {!desktop ? (
+          <div className="sol-conn__note">Reading a vault is available in the desktop app only.</div>
+        ) : (
+          <>
+            <div className="sol-conn__vault">
+              <span className="sol-conn__chip" title={data.vault || "No vault chosen"}>
+                {data.vault ? baseNameOf(data.vault) : "No vault"}
+              </span>
+              <button
+                type="button" className="sol-conn__refresh" title="Choose the vault folder"
+                onClick={(e) => { e.stopPropagation(); void chooseVault(); }}
+                onPointerDown={stopDragStart} onMouseDown={(e) => e.stopPropagation()}
+              >Choose…</button>
+            </div>
+            <input
+              className="sol-conn__url" type="text" value={folder} placeholder="Subfolder (blank = whole vault)" spellCheck={false}
+              onChange={(e) => setFolder(e.target.value)}
+              onBlur={(e) => commitField(e.target.value, data.folder, setFolder, (v) => { data.folder = v; })}
+              onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+              onPointerDown={stopDragStart} onMouseDown={(e) => e.stopPropagation()}
+            />
+            <input
+              className="sol-conn__url" type="text" value={glob} placeholder="Name filter, e.g. 2026-* (optional)" spellCheck={false}
+              onChange={(e) => setGlob(e.target.value)}
+              onBlur={(e) => commitField(e.target.value, data.glob, setGlob, (v) => { data.glob = v; })}
+              onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+              onPointerDown={stopDragStart} onMouseDown={(e) => e.stopPropagation()}
+            />
+            <input
+              className="sol-conn__url" type="text" value={nameFormat} placeholder="Date-from-name, e.g. YYYY-MM-DD (auto)" spellCheck={false}
+              onChange={(e) => setNameFormat(e.target.value)}
+              onBlur={(e) => commitField(e.target.value, data.nameFormat, setNameFormat, (v) => { data.nameFormat = v; })}
+              onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+              onPointerDown={stopDragStart} onMouseDown={(e) => e.stopPropagation()}
+            />
+            <label className="sol-conn__field" title="Add a body column with each note's markdown">
+              <input
+                type="checkbox" checked={data.includeBody}
+                onChange={(e) => { data.includeBody = e.target.checked; void processGraph(); }}
+                onPointerDown={stopDragStart} onMouseDown={(e) => e.stopPropagation()}
+              />
+              Include body
+            </label>
+            <ConnectionStatusRow nodeId={data.id} onRefresh={() => void refreshConnection(data.id)} />
+            <RefreshIntervalField minutes={minutes} onCommit={(n) => { data.refreshMinutes = n; setMinutes(n); }} />
+            {cols.length > 0 && (
+              <div className="sol-conn__preview" title={`${cols.length} columns`}>
+                {cols.slice(0, 6).map((c, i) => <div key={i} className="sol-conn__preview-row">{c}</div>)}
+                {cols.length > 6 && <div className="sol-conn__preview-more">+{cols.length - 6} more</div>}
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </NodeShell>
   );
 }
