@@ -36,7 +36,9 @@ and its entry deleted. Ruled-out-forever ideas: `out-of-scope.md`; settled ratio
   commit routing, and storage in `CompositeInternalSnapshot`. Reopen only on the author's word.
 - **1.4 walk deferrals, 2026-09-06** (the author: "defer for later" / "defer"; plan sections in
   `1.4-plan.md` stay the spec): **D9** AI palette re-enable + verification tail; **D10**
-  document-level FC defaults; **E3** Materials & Mechanical pack content; **F1** obstacle-avoiding
+  document-level FC defaults; **E1** composite aliasing / hidden-port promotion UI (the model
+  half is what the 2.0 pack-node shape needs — build it there); **E3** Materials & Mechanical pack
+  content; **F1** obstacle-avoiding
   "routed" cable shape (LGPL question still open); **F2** traveling-cable flow pulse as meaning;
   **F3** moveable / hideable toolbar chrome; **F4** top-bar art slot (needs art). Reopen on the
   author's word only.
