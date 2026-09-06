@@ -9,12 +9,22 @@
 import { parse as parseYaml } from "yaml";
 import { type TypeHint, type TypeMap, type ScalarKind } from "./vaultTypes";
 
+/** The in-process validation subset of a property's JSON Schema (Write Properties, item B). */
+export interface PropConstraint {
+  kind: ScalarKind | "list" | "frame";
+  enum?: (string | number)[];
+  min?: number;
+  max?: number;
+}
+
 export interface MdbaseType {
   name: string;
   /** Glob relative to the collection root ("*.md"). */
   pathGlob: string;
   /** Per-property parse hints from the schema. */
   properties: TypeMap;
+  /** Per-property validation constraints (type / enum / min / max). */
+  constraints: Record<string, PropConstraint>;
   /** Keys the schema marks required (always present). */
   required: string[];
 }
@@ -52,6 +62,20 @@ function propHint(schema: unknown): TypeHint | null {
   return null;
 }
 
+/** One JSON-Schema property → its validation constraint (null when not understood). */
+function propConstraint(schema: unknown): PropConstraint | null {
+  const hint = propHint(schema);
+  if (!hint || !isRecord(schema)) return null;
+  const kind = hint.kind;
+  const c: PropConstraint = { kind };
+  if (Array.isArray(schema.enum)) {
+    c.enum = schema.enum.filter((v): v is string | number => typeof v === "string" || typeof v === "number");
+  }
+  if (typeof schema.minimum === "number") c.min = schema.minimum;
+  if (typeof schema.maximum === "number") c.max = schema.maximum;
+  return c;
+}
+
 /** The YAML frontmatter object of a `_types/*.md` file, or null. */
 function frontmatterOf(text: string): unknown {
   const m = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text);
@@ -71,12 +95,15 @@ function parseTypeFile(text: string): MdbaseType | null {
   const value = isRecord(schema.value) ? schema.value : {};
   const props = isRecord(value.properties) ? value.properties : {};
   const properties: TypeMap = {};
+  const constraints: Record<string, PropConstraint> = {};
   for (const [key, sub] of Object.entries(props)) {
     const hint = propHint(sub);
     if (hint) properties[key] = hint;
+    const c = propConstraint(sub);
+    if (c) constraints[key] = c;
   }
   const required = Array.isArray(value.required) ? value.required.filter((r): r is string => typeof r === "string") : [];
-  return { name, pathGlob, properties, required };
+  return { name, pathGlob, properties, constraints, required };
 }
 
 /** Parse a collection from its `mdbase.yaml` text + the texts of its `_types/*.md` files. */
@@ -119,4 +146,28 @@ export function mdbaseTypeFor(collection: MdbaseCollection, relPath: string): Ty
     if (globToRegExp(t.pathGlob).test(relPath)) return t.properties;
   }
   return {};
+}
+
+/** The matching type's validation schema for a note at `relPath`, or null. */
+export function mdbaseSchemaFor(collection: MdbaseCollection, relPath: string): { constraints: Record<string, PropConstraint>; required: string[] } | null {
+  for (const t of collection.types) {
+    if (globToRegExp(t.pathGlob).test(relPath)) return { constraints: t.constraints, required: t.required };
+  }
+  return null;
+}
+
+/** Validate a YAML-ready value against a property constraint — a human reason, or null when
+ *  it passes. A null value passes here (missing-required is a row-level check). */
+export function validateAgainst(value: unknown, c: PropConstraint): string | null {
+  if (value === null || value === undefined) return null;
+  if (c.kind === "number") {
+    if (typeof value !== "number") return "must be a number";
+    if (c.min !== undefined && value < c.min) return `must be at least ${c.min}`;
+    if (c.max !== undefined && value > c.max) return `must be at most ${c.max}`;
+  }
+  if (c.kind === "logical" && typeof value !== "boolean") return "must be true or false";
+  if (c.enum && (typeof value === "string" || typeof value === "number") && !c.enum.includes(value)) {
+    return `must be one of ${c.enum.join(", ")}`;
+  }
+  return null;
 }

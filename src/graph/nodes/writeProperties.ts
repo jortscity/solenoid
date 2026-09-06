@@ -7,9 +7,10 @@ import { ClassicPreset } from "rete";
 import { cubeIn, frameOut } from "./shared";
 import { planPropertyWrites, propertyPlanFrame, resolveKey, patchFrontmatter, type PlanRow } from "../frontmatterPatch";
 import { formatDateSerial } from "./dateSerial";
+import { mdbaseSchemaFor, validateAgainst, parseMdbaseCollection, type MdbaseCollection, type PropConstraint } from "../mdbaseTypes";
 import { type Shape } from "../frameShape";
 import { settingsStore } from "../settingsStore";
-import { hasFs, readVaultFile, writeTextFilePath, joinPath } from "../fileBridge";
+import { hasFs, readVaultFile, writeTextFilePath, joinPath, listMarkdownFiles, readFileText } from "../fileBridge";
 import { isCubeValue, type CubeValue, type FrameValue } from "../frame";
 import { isSolError, type SolError } from "../errorValue";
 
@@ -103,12 +104,59 @@ export class WritePropertiesNode extends ClassicPreset.Node {
     return m;
   }
 
+  // ── mdbase validation: a row that violates the note's schema is REFUSED, not written ──
+  private _mdbaseCache = new Map<string, MdbaseCollection | null>();
+
+  private async loadCollection(folder: string): Promise<MdbaseCollection | null> {
+    try {
+      const yaml = await readVaultFile(this.vault, folder ? `${folder}/mdbase.yaml` : "mdbase.yaml");
+      let types: string[] = [];
+      try {
+        const typesDir = folder ? await joinPath(this.vault, ...folder.split("/"), "_types") : await joinPath(this.vault, "_types");
+        const names = await listMarkdownFiles(typesDir);
+        types = await Promise.all(names.map((n) => readFileText(typesDir, n)));
+      } catch { types = []; }
+      return parseMdbaseCollection(yaml, types);
+    } catch {
+      return null;
+    }
+  }
+
+  /** The mdbase schema governing a note, walking up its folders for `mdbase.yaml`. */
+  private async schemaFor(relPath: string): Promise<{ constraints: Record<string, PropConstraint>; required: string[] } | null> {
+    const parts = relPath.split("/");
+    parts.pop();
+    for (let i = parts.length; i >= 0; i--) {
+      const folder = parts.slice(0, i).join("/");
+      if (!this._mdbaseCache.has(folder)) this._mdbaseCache.set(folder, await this.loadCollection(folder));
+      const coll = this._mdbaseCache.get(folder)!;
+      if (coll) {
+        const collRel = folder ? relPath.slice(folder.length + 1) : relPath;
+        const sch = mdbaseSchemaFor(coll, collRel);
+        if (sch) return sch;
+      }
+    }
+    return null;
+  }
+
+  /** Set any row that violates its note's schema to refused, in place. */
+  private validateRows(rows: PlanRow[], sch: { constraints: Record<string, PropConstraint>; required: string[] } | null): void {
+    if (!sch) return;
+    for (const r of rows) {
+      if (r.action === "refused" || r.action === "unreadable") continue;
+      if (sch.required.includes(r.key) && r.value === null) { r.action = "refused"; r.reason = "required, can't be blank"; continue; }
+      const c = sch.constraints[r.key];
+      if (c) { const reason = validateAgainst(r.value, c); if (reason) { r.action = "refused"; r.reason = `mdbase: ${reason}`; } }
+    }
+  }
+
   /** Read each note and resolve every row's action + current value. Never writes. */
   async preview(): Promise<void> {
     if (this.status === "previewing" || this.status === "writing") return;
     if (!this.planRows.length) { this.status = "error"; this.statusMessage = "Nothing to write. Connect rows."; return; }
     if (this.vault.trim() === "") { this.status = "error"; this.statusMessage = "Choose a vault"; return; }
     this.status = "previewing";
+    this._mdbaseCache.clear();
     try {
       for (const [p, rows] of this.byPath()) {
         let text: string;
@@ -120,6 +168,7 @@ export class WritePropertiesNode extends ClassicPreset.Node {
           r.action = action === "add" && !this.addMissing ? "unchanged" : action;
           r.reason = action === "refused" ? "nested block" : undefined;
         }
+        this.validateRows(rows, await this.schemaFor(p)); // mdbase: refuse invalid rows
       }
       this.cachedPlan = propertyPlanFrame(this.planRows);
       const n = (a: string) => this.planRows.filter((r) => r.action === a).length;
@@ -141,6 +190,7 @@ export class WritePropertiesNode extends ClassicPreset.Node {
     if (isSolError(this.cachedCube)) { this.status = "error"; this.statusMessage = this.cachedCube.code; return; }
     if (!this.planRows.length) { this.status = "error"; this.statusMessage = "Nothing to write. Connect rows."; return; }
     this.status = "writing";
+    this._mdbaseCache.clear();
     let wrote = 0, changed = 0, failed = 0;
     const failures: string[] = [];
     const newTypes = new Map<string, string>(); // key → obsidian type, for addMissing
@@ -150,6 +200,7 @@ export class WritePropertiesNode extends ClassicPreset.Node {
         let text: string;
         try { text = await readVaultFile(this.vault, p); }
         catch { failed++; if (failures.length < 3) failures.push(`${p}: unreadable`); continue; }
+        const sch = await this.schemaFor(p);
         // Only the rows that would change; a fresh resolve so a stale Preview can't misfire.
         const patch: Record<string, PlanRow["value"]> = {};
         let touched = 0;
@@ -158,6 +209,12 @@ export class WritePropertiesNode extends ClassicPreset.Node {
           if (action === "refused") continue;
           if (action === "add" && !this.addMissing) continue;
           if (action === "unchanged") continue;
+          // mdbase: never write a value the note's schema would reject.
+          if (sch) {
+            if (sch.required.includes(r.key) && r.value === null) continue;
+            const c = sch.constraints[r.key];
+            if (c && validateAgainst(r.value, c)) continue;
+          }
           patch[r.key] = r.value;
           touched++;
           if (action === "add" && cube) newTypes.set(r.key, obsidianTypeName(cube, r.key));
