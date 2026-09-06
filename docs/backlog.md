@@ -47,14 +47,12 @@ elkjs-vs-rete-auto-arrange peer conflict left with the plugin.
 
 ## Sources
 
-- [ ] **Widget nodes Tier 1 (1.4 C1, author 2026-09-04c).** The bundle in `v2.0/16-widget-nodes.md`:
-  Weather + Geocode (Open-Meteo), Currency/FX (Frankfurter), Holidays (Nager.Date), Time Zone
-  Convert + World Clock (pure `Intl`), QR Code (pure). Each on the Data Feed build (provider file
-  + node + component + fixture tests + seed). Defaults taken from the plan unless the author
-  overrules: FX in; the three keyless providers as built-in dependencies; the fetching four
-  beside the Connections nodes, the pure two in Timesavers; a "Garden Dashboard" seed. Order:
-  Geocode + Weather, Holidays, TZ/QR, FX last. Node-design rules in `node-coverage.md`;
-  descriptions never explain wiring.
+- [ ] **Widget nodes Tier 1 — follow-ups (1.4 C1).** All six shipped (Geocode, Weather,
+  Holidays, Time Zone Convert, World Clock, Currency/FX, QR Code) + the Garden Dashboard seed.
+  Left for the author to rule on (Lead is surfacing): FX time-series/Chart frame (Frankfurter has
+  it, dropped for v1); Time Zone Convert From/To as curated zone pickers vs the current wireable
+  text fields; TZ Convert result defaulting to a datetime format on the card. Tier 2 (`v2.0/16`):
+  Air Quality/Pollen preset of Weather, Ticking Now timer.
 
 ## Finance
 

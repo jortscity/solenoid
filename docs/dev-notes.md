@@ -34,6 +34,24 @@ packs don't). **H6 Schedule** built by the lead: `scheduleCpm.ts` (pure CPM in w
 space) + `nodes/schedule.ts` + `kitchen-remodel` seed — see `node-coverage.md`. Author then:
 "go nuts with the Obsidian integration as planned" — be takes A (Vault Folder → Cube) after the
 Garden seed, fe takes A′ (row verbs take cubes) then B (Write Properties) after D2.
+### SESSION DIGEST (2026-09-06 — C1 widget nodes, all six shipped)
+
+Built the rest of the Tier-1 widget bundle (`v2.0/16-widget-nodes.md`) on the Weather/Geocode
+pattern: **Holidays** (Nager.Date; provider `holidaysProvider.ts`, frame + Dates list feeding
+NETWORKDAYS/WORKDAY + days-to-next, region filter applied per-compute like Geocode's pick),
+**Time Zone Convert** + **World Clock** (pure Intl in `timeZone.ts`, DST read at the instant;
+Timesavers ▸ Date & Time), **Currency/FX** (Frankfurter; `fxProvider.ts` registers every
+currency code with the display bridge and the node authors the target currency on Converted via
+`applyFcUnit` — Convert's path, per firstClassUnits), **QR Code** (`qrCode.ts` payload+SVG;
+`qrcode` imported lazily in `data()`, ImageValue out the chart socket; Timesavers ▸ Output ▸
+Visuals). Fetchers sit beside the Connections nodes and ride the C2 gate; pure ones are Timesavers
+pack entries (custom-logic `create:` nodes). Each has a fixture-tested pure provider; the ISO-date
+providers are sanctioned in `sourceInvariants`. **Garden Dashboard seed** (`garden-dashboard.json`,
+generator `scripts/gen-garden-dashboard-seed.cjs`): Geocode→Weather→split at TODAY→total rain each
+side→Report+Alert; SKIPPED in seedsCompute (needs live network) and NOT yet baked with tune-seeds
+(no worktree dev server — geometry is generator-computed to pass seeds.test, wants a tune pass).
+Open author calls (Lead surfacing): FX time-series/Chart frame (dropped v1), TZ From/To pickers vs
+text, TZ datetime default on the card. See `backlog.md` § Sources.
 
 ### SESSION DIGEST (2026-09-06 — Obsidian vault bundle, docs only)
 
