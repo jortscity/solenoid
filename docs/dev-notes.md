@@ -6,6 +6,35 @@ sessions sweep verbatim to `archive/dev-notes-history.md` — read a digest here
 first; drill into the archive (or `git log`) only for the mechanics of a
 specific item.
 
+### SESSION DIGEST (2026-09-06b — three agents: exports fixed, C1 done, the 1.4 walk finished, H6 built)
+
+Lead + two peers (`agent-coordination.md`: worktrees `be` / `fe`, one tsc/vitest at a time via the
+board's test lock). **Obsidian export bugs (author-reported):** the vault chart PNG was blank and
+the webpage export's Charts block empty because both captured a card's FIRST/largest `<svg>` — the
+`solenoid-node__frame` border overlay, which paints nothing off-canvas; one `nodeChartSvg()`
+(`canvasCapture.ts`) skips frame SVGs and glyphs, and the vault raster scales to ≥640px wide. A
+lambda ref exported as `[object Object]`; `lambdaToMarkdown` (`obsidianMarkdown.ts`) emits the
+Report's `f(params) = body` as `$$` math (via `formulaToLatex`) + a where-legend, inline-code
+fallback. **Import Obsidian Note:** the picker rows collapsed to dots under a long vault (flex
+column + overflow:hidden → min-height 0) and the picker overflowed the fixed-height card; rows are
+`flex:none`, the picker replaces the body while open and its list is a shrinkable scroller.
+**Off-app links** navigated the desktop webview away with no way back: `externalLinks.ts` (a
+capture-phase document click guard installed by App) hands every off-origin http(s)/mailto link to
+`openExternal`. **Build Cube numeric keyboard:** `ExtensibleInputs` fell back to the number field
+for any non-text, non-wire-only row; a wildcard row is now wire-only unless the node opts into
+`autoLiterals` — Build Cube / Cube Columns opt in (a typed cell may be number or text).
+**C1 widget bundle complete** (be): Holidays, Time Zone Convert, World Clock, Currency (FX, unit
+forwarded the Convert way), QR Code (`qrcode` dep, lazy) beside Weather + Geocode; Garden
+Dashboard seed pending. **fe:** table popup footer type-aware stats; docked FCs recenter inside a
+drill-in (`repositionDockedFor` + `swapRepositionDockedSlot`); per-element mixed-unit trig (D7:
+a tagged cell in its own unit, a bare cell follows the node's angle mode). **The 1.4 walk is
+finished** (D9–F6 + Track H ruled; Call column + Track H headings; deferrals: D9, D10, E1, E3,
+F1–F4, H7, drill-in drawn cables). E4's premise was outdated (op cards already reshape sockets;
+packs don't). **H6 Schedule** built by the lead: `scheduleCpm.ts` (pure CPM in working-day index
+space) + `nodes/schedule.ts` + `kitchen-remodel` seed — see `node-coverage.md`. Author then:
+"go nuts with the Obsidian integration as planned" — be takes A (Vault Folder → Cube) after the
+Garden seed, fe takes A′ (row verbs take cubes) then B (Write Properties) after D2.
+
 ### SESSION DIGEST (2026-09-06 — Obsidian vault bundle, docs only)
 
 Author ask: a tighter Obsidian integration, not a plugin, then "explore TaskNotes and mdbase by

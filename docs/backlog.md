@@ -70,6 +70,21 @@ elkjs-vs-rete-auto-arrange peer conflict left with the plugin.
   "CumPmt" → Placeholder (registry test). Suites: financeInvariants, parity, nodeOps,
   formulaNodeCoverage, seeds, catalogRegistry, uiCopy.
 
+## Obsidian + TaskNotes (author 2026-09-07: THE adoption bet — correct, great, useful)
+
+The bundle `v2.0/24-obsidian-vault.md` is promoted to the flagship track; its § Defaults are the
+build rules and § Sequencing the order (A′ → A → B → D → C → F → I → J → E). Every item ships
+verified in the desktop app against the demo vault.
+
+- [ ] **Demo vault** (`demo-vault/`, checked in; mirrored as `tests/fixtures/vault/`): an mdbase
+  collection with `mdbase.yaml` types, a plain notes folder, a folder with `.obsidian/types.json`,
+  a daily-notes folder, TaskNotes-shaped task notes (frontmatter the plugin writes), a `.base`
+  view, wikilinks/embeds/tags, and README notes that narrate what each Solenoid seed does to it.
+  Doubles as the author's eyeball vault and the seed's data. With A.
+- [ ] **A′ row verbs take cubes** (fe, in progress) · **A Vault Folder → Cube + R3** (be, next) ·
+  **B Write Properties** (fe, after A′) · then D, C, F (TaskNotes feed + F1–F6), I, J, E per the
+  bundle. TaskNotes fixtures: one JSON per endpoint under `tests/fixtures/tasknotes/`.
+
 ## Track H — Allocator-family nodes (author 2026-09-06: in)
 
 Each ships WITH a seed baked via `scripts/tune-seeds.mjs`; specs are the `1.4-plan.md` § Track H
@@ -85,10 +100,6 @@ sections. Gate defaults below are the lead's picks unless the author overrules.
   Snowball; monthly cascade, closed-form. Output mode: summary (Debt · Months · Interest · Payoff
   date) default, schedule frame (Month · per-debt balance) the other. Currency unit carried. Seed
   "Debt payoff".
-- [ ] **H6 Schedule (CPM)** — tasks frame/cube (Task · Duration · Predecessors) + Start, Working
-  days (default on), Holidays → rows + Start · Finish · Float · Critical, `Project finish` scalar,
-  `gantt` Mermaid source. Pure verb, Kahn + forward/backward pass; Float in v1. Seed "Kitchen
-  remodel". Full spec `1.4-plan.md` § H6.
 
 ## Canvas annotation
 
