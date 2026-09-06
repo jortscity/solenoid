@@ -1,5 +1,5 @@
 import { ClassicPreset } from "rete";
-import { readInput, numIn, numListOut, tableOut, strTableOut, dateTableOut, logicalTableOut, listIn, listOut, strIn, strComboIn, strOut, strListIn, strListOut, dateListIn, dateListOut, logicalListIn, logicalListOut, frameIn, frameOut, cubeIn, cubeOut, cubeAdoptIn, cubeAdoptOut, anyIn, anyDataIn, staticTrueAnyOut, adoptiveTableIn, adoptiveListIn, lambdaIn } from "./shared";
+import { readInput, numIn, numListOut, tableOut, strTableOut, dateTableOut, logicalTableOut, listIn, listOut, strIn, strComboIn, strOut, strListIn, strListOut, dateListIn, dateListOut, logicalListIn, logicalListOut, frameIn, frameOut, cubeIn, cubeOut, cubeAdoptIn, tableAdoptOut, anyIn, anyDataIn, staticTrueAnyOut, adoptiveTableIn, adoptiveListIn, lambdaIn } from "./shared";
 import type { PassthroughSpec } from "./passthrough";
 import { extractVariables, compileEvaluator, rowRefNames, type ExprEvaluator } from "../excelFormula";
 import { isLambdaValue } from "../lambdaValue";
@@ -19,7 +19,7 @@ import {
   splitFrame, getColumn, addColumn, frameRowCount, frameHasTextColumns, makeHeaders,
   frameFromInputText, parseFrameSource, frameSourceToText, deriveFrame,
   formatFrameCell, isCubeValue, isFrameValue, inferColumn, frameToCube,
-  selectCubeRows, cubeRowCount, frameFromRows,
+  selectCubeRows, cubeRowCount, frameFromRows, cubeFromColumns,
   type FrameValue, type FrameColumn, type FrameCell, type FrameColType, type FrameSourceColumn,
 } from "../frame";
 import {
@@ -46,7 +46,7 @@ import {
 } from "../frameShape";
 import { csvList, type FrameShapeContext } from "./frameShapeHook";
 import type { ColumnPickerSpec } from "./columnPickerHook";
-import type { CubeValue, CubeCell } from "../frame";
+import type { CubeValue, CubeCell, CubeColumn } from "../frame";
 import { type UnitCell } from "../unitValue";
 import { tagFrameCellUnit, columnUnitFromSpec } from "../unitColumn";
 
@@ -91,6 +91,37 @@ function cubeToScalarFrame(cube: CubeValue): FrameValue {
     .filter((c) => c.cells.every((cell) => !Array.isArray(cell) && !isFrameValue(cell) && !isCubeValue(cell)))
     .map((c) => inferColumn(c.name, c.cells));
   return { __frame: true, columns };
+}
+
+/** A cube read as a frame FOR A FORMULA (Computed Column, A′): a scalar column types via
+ *  inferColumn; a list/sub-table column becomes a column of #SHAPE! cells, so referencing
+ *  it in the expression is a #SHAPE! (a nested cell is opaque to the formula) while
+ *  leaving it out just carries it through untouched on the cube. */
+function cubeToExprFrame(cube: CubeValue): FrameValue {
+  const columns = cube.columns.map((c) => {
+    if (c.cells.every((cell) => !Array.isArray(cell) && !isFrameValue(cell) && !isCubeValue(cell))) {
+      return inferColumn(c.name, c.cells);
+    }
+    const err = solError("#SHAPE!", `"${c.name}" has list or table cells; a formula reads scalar columns`);
+    return { name: c.name, type: "string" as FrameColType, values: c.cells.map(() => err) };
+  });
+  return { __frame: true, columns };
+}
+
+/** Append (or replace by name) a scalar column on a cube, with the frame's `after`
+ *  placement — the cube twin of addColumn. Nested cells on every other column ride by
+ *  reference. Throws #REF! for an unknown `after` anchor (matching addColumn's node). */
+function cubeWithColumn(cube: CubeValue, name: string, cells: CubeCell[], type: FrameColType | undefined, after: string): CubeValue {
+  const col: CubeColumn = { name, cells, ...(type ? { type } : {}) };
+  const at = cube.columns.findIndex((c) => c.name === name);
+  if (at >= 0) { const cols = cube.columns.slice(); cols[at] = col; return cubeFromColumns(cols); }
+  const cols = [...cube.columns, col];
+  if (after) {
+    const a = cols.findIndex((c) => c.name === after);
+    if (a < 0) throw solError("#REF!", `No column "${after}" to place after`);
+    cols.splice(a + 1, 0, cols.pop()!);
+  }
+  return cubeFromColumns(cols);
 }
 
 /** Stamp a new compute pass — the out-of-order-pass guard; MUST be evaluated BEFORE
@@ -314,7 +345,7 @@ export class DistinctNode extends ClassicPreset.Node {
     super("Distinct");
     this.label = init?.label ?? "Distinct";
     this.addInput("frame", cubeAdoptIn("Table / Cube"));
-    this.addOutput("frame", cubeAdoptOut("Unique"));
+    this.addOutput("frame", tableAdoptOut("Unique"));
   }
 
   // A cube in → a cube out, a frame in → a frame out; the output type adopts the input's
@@ -359,7 +390,7 @@ export class HeadNode extends ClassicPreset.Node {
     this.addInput("frame", cubeAdoptIn("Table / Cube"));
     this.addInput("rows", numIn("Rows"));
     this.addInput("to", numIn("To"));
-    this.addOutput("frame", cubeAdoptOut("Head"));
+    this.addOutput("frame", tableAdoptOut("Head"));
   }
 
   passthrough(): PassthroughSpec[] { return [{ output: "frame", inputs: ["frame"], combine: "single" }]; }
@@ -400,7 +431,7 @@ export class SortFrameNode extends ClassicPreset.Node {
     this.dir = init?.dir ?? "asc";
     this.addInput("frame", cubeAdoptIn("Table / Cube"));
     this.addInput("column", strIn("Column"));
-    this.addOutput("frame", cubeAdoptOut("Sorted"));
+    this.addOutput("frame", tableAdoptOut("Sorted"));
   }
 
   passthrough(): PassthroughSpec[] { return [{ output: "frame", inputs: ["frame"], combine: "single" }]; }
@@ -459,9 +490,9 @@ export class FilterFrameNode extends ClassicPreset.Node {
     } else {
       this.addValuePair();
     }
-    this.addOutput("frame", cubeAdoptOut("Kept"));
+    this.addOutput("frame", tableAdoptOut("Kept"));
     // The complement is a permanent socket, never a mode (same rule as the list Filter).
-    this.addOutput("dropped", cubeAdoptOut("Dropped"));
+    this.addOutput("dropped", tableAdoptOut("Dropped"));
   }
 
   private addPairWithId(id: number): void {
@@ -2172,7 +2203,8 @@ export class ComputedColumnNode extends ClassicPreset.Node {
   label: string;
   expr: string;
   addAs: ComputedColumnAs;
-  cachedResult: FrameValue | SolError | null = null;
+  cachedResult: FrameValue | CubeValue | SolError | null = null;
+  noWidenInputs: ReadonlySet<string> = new Set(["frame"]);
   stringLiterals: Record<string, string> = { name: "computed", after: "" };
   /** Inline defaults for the side-input sockets (Expression convention: 0). */
   literals: Record<string, number> = {};
@@ -2202,13 +2234,18 @@ export class ComputedColumnNode extends ClassicPreset.Node {
       this.sideVars = init.sideVars.filter((v) => typeof v === "string");
       for (const v of this.sideVars) this.addInput(v, anyDataIn(v));
     }
-    this.addInput("frame", frameIn("Frame"));
+    this.addInput("frame", cubeAdoptIn("Table / Cube"));
     this.addInput("name", strIn("Name"));
     // Blank = append; a column name = insert after it. A replaced column keeps its position.
     this.addInput("after", strIn("After"));
     this.addInput("fn", lambdaIn("λ"));
-    this.addOutput("frame", frameOut("Frame"));
+    this.addOutput("frame", tableAdoptOut("Frame"));
   }
+
+  // Rank-adopts the table input (cube in → cube out, frame in → frame out); the new column
+  // it ADDS is declared in frameShape (which wins over this passthrough in the shape
+  // resolver, A′), so downstream still sees the new column on the frame path.
+  passthrough(): PassthroughSpec[] { return [{ output: "frame", inputs: ["frame"], combine: "single" }]; }
 
   /** Grow/shrink the side-input sockets to match `needed`; driven by the FRAME SCHEMA, so
    *  it must reconcile from data() via a microtask, and cables on a removed socket drop. */
@@ -2247,13 +2284,19 @@ export class ComputedColumnNode extends ClassicPreset.Node {
     return shapeOfFrameValue({ __frame: true, columns: cols });
   }
 
-  data(inputs: { frame?: (FrameValue | null)[]; name?: string[]; after?: string[]; fn?: unknown[] } & Record<string, unknown[] | undefined>) {
-    const f = inputs.frame?.[0] ?? null;
+  data(inputs: { frame?: unknown[]; name?: string[]; after?: string[]; fn?: unknown[] } & Record<string, unknown[] | undefined>) {
+    // A cube reads its SCALAR columns for the formula (a list/nested cell is opaque →
+    // #SHAPE! if referenced), then the new column is appended back onto the CUBE with the
+    // nested columns riding by reference (A′). A frame stays a frame; a bare list/matrix
+    // widens like the old frameIn.
+    const rawF = inputs.frame?.[0] ?? null;
+    const isCube = isCubeValue(rawF);
+    const f: FrameValue | null = rawF == null ? null : isCube ? cubeToExprFrame(rawF) : (isFrameValue(rawF) ? rawF : widenToFrame(rawF));
     const nameRaw = readInput(inputs.name, this.stringLiterals.name ?? "");
     const afterRaw = readInput(inputs.after, this.stringLiterals.after ?? "");
     const lam = inputs.fn?.[0];
-    const out = (frame: FrameValue | SolError | null) => { this.cachedResult = frame; return { frame }; };
-    this.sourceColumns = f ? f.columns.map((c) => c.name) : [];
+    const out = (frame: FrameValue | CubeValue | SolError | null) => { this.cachedResult = frame; return { frame }; };
+    this.sourceColumns = isCube ? rawF.columns.map((c) => c.name) : (f ? f.columns.map((c) => c.name) : []);
     if (!f || nameRaw === null) { this.defVars = []; this._reconcileSideSockets([]); return out(null); }
     const name = nameRaw.trim() || "computed";
     const after = (afterRaw ?? "").trim();
@@ -2267,7 +2310,7 @@ export class ComputedColumnNode extends ClassicPreset.Node {
         this._rowRefs = this._evaluator ? rowRefNames(this.expr) : [];
         this._compiledFor = this.expr;
       }
-      if (!this.expr.trim()) { this.defVars = []; this._reconcileSideSockets([]); return out(f); } // nothing defined yet
+      if (!this.expr.trim()) { this.defVars = []; this._reconcileSideSockets([]); return out(isCube ? rawF : f); } // nothing defined yet
       if (!this._evaluator) { this.defVars = []; this._reconcileSideSockets([]); return out(solError("#VALUE!", "The formula does not parse")); }
     }
 
@@ -2278,14 +2321,14 @@ export class ComputedColumnNode extends ClassicPreset.Node {
     const k = this._lastKey;
     if (
       this.cachedResult && !isSolError(this.cachedResult) && k &&
-      Object.is(k.f, f) && Object.is(k.lam, wired) && k.expr === this.expr && k.addAs === this.addAs &&
+      Object.is(k.f, rawF) && Object.is(k.lam, wired) && k.expr === this.expr && k.addAs === this.addAs &&
       k.name === name && k.after === after && k.bindings === bindJson &&
       k.sideVals.length === sideVals.length && k.sideVals.every((v, i) => Object.is(v, sideVals[i]))
     ) {
       return { frame: this.cachedResult };
     }
-    const remember = (frame: FrameValue) => {
-      this._lastKey = { f, lam: wired, expr: this.expr, addAs: this.addAs, name, after, bindings: bindJson, sideVals };
+    const remember = (frame: FrameValue | CubeValue) => {
+      this._lastKey = { f: rawF, lam: wired, expr: this.expr, addAs: this.addAs, name, after, bindings: bindJson, sideVals };
       return out(frame);
     };
 
@@ -2313,6 +2356,13 @@ export class ComputedColumnNode extends ClassicPreset.Node {
       ? inferColumn(name, values).type
       : colTypeForAddAs(this.addAs);
 
+    // A cube: append (or replace) the computed column back onto the ORIGINAL cube, so its
+    // list/nested columns ride through by reference; the placement follows `after`.
+    if (isCube) {
+      const cubeOut = runVerb(() => cubeWithColumn(rawF as CubeValue, name, values, colType, after));
+      return isSolError(cubeOut) ? out(cubeOut) : remember(cubeOut);
+    }
+
     // Replacement is detected by the column COUNT — exact, and avoids a second copy of
     // addColumn's `Name (unit)` header parsing.
     const result = addColumn(f, name, values, colType);
@@ -2328,9 +2378,10 @@ export class ComputedColumnNode extends ClassicPreset.Node {
     return remember(result);
   }
 
-  /** What the last successful frame was built from (identity memo). */
+  /** What the last successful frame was built from (identity memo; `f` is the RAW table
+   *  input — a Frame or a Cube — keyed by identity). */
   private _lastKey: {
-    f: FrameValue; lam: unknown; expr: string; addAs: ComputedColumnAs;
+    f: unknown; lam: unknown; expr: string; addAs: ComputedColumnAs;
     name: string; after: string; bindings: string; sideVals: unknown[];
   } | null = null;
 }
@@ -2350,7 +2401,7 @@ export class GetRowNode extends ClassicPreset.Node {
     if (init?.index !== undefined) this.literals.index = init.index;
     this.addInput("frame", cubeAdoptIn("Table / Cube"));
     this.addInput("index", numIn("Row"));
-    this.addOutput("frame", cubeAdoptOut("Row"));
+    this.addOutput("frame", tableAdoptOut("Row"));
   }
 
   passthrough(): PassthroughSpec[] { return [{ output: "frame", inputs: ["frame"], combine: "single" }]; }

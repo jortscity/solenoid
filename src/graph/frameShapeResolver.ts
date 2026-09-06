@@ -73,16 +73,19 @@ export function makeFrameShapeResolver(editor: AnyEditor): FrameShapeResolver {
         const lane = conduitLaneOf(outKey, "out");
         return lane < 0 ? null : inputShape(nodeId, conduitInKey(lane));
       }
-      // Everything else declares its forwarding; skip this and a frame routed through a
-      // Display / IF / Expect loses its static shape and every verb downstream goes unknown.
-      const pass = passthroughForOutput(n, outKey);
-      if (pass) return passthroughShape(nodeId, pass);
-
-      // Every producer declares its own columns; a node with neither declaration is unknown.
+      // A node that declares BOTH — a rank-adopting passthrough AND its own frameShape —
+      // ADDS or reshapes columns while still forwarding the input's rank (ComputedColumn /
+      // Add Column over a cube, A′): its OWN columns win over the forwarded input shape.
       const hook = frameShapeOf(n);
-      return hook
-        ? hook(outKey, { inputShape: (k) => inputShape(nodeId, k), wired: (k) => isWired(nodeId, k) })
-        : null;
+      const pass = passthroughForOutput(n, outKey);
+      const runHook = () => hook!(outKey, { inputShape: (k) => inputShape(nodeId, k), wired: (k) => isWired(nodeId, k) });
+      if (hook && pass) return runHook();
+      // Otherwise a pure forwarder flows the input shape; skip this and a frame routed
+      // through a Display / IF / Expect loses its static shape and every verb downstream
+      // goes unknown.
+      if (pass) return passthroughShape(nodeId, pass);
+      // Every producer declares its own columns; a node with neither declaration is unknown.
+      return hook ? runHook() : null;
     });
   }
 
