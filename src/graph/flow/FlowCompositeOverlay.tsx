@@ -13,7 +13,8 @@ import { CompositeNode, CompositeInputNode, CompositeOutputNode } from "../rete-
 import type { SolenoidNode } from "../schemes";
 import { compositeEditorStore, compositePassStore } from "../compositeEditorStore";
 import { getEditor, getView, processGraph } from "../process";
-import { swapSelectionSlots, swapArrangeSlots, swapDeleteSlot } from "../canvasCommands";
+import { swapSelectionSlots, swapArrangeSlots, swapDeleteSlot, swapRepositionDockedSlot } from "../canvasCommands";
+import { repositionDockedFor } from "../fcDocking";
 import { setActiveGraph } from "../activeGraph";
 import { syncSemanticZoomFor } from "../semanticZoomStore";
 import { scheduleAutosave } from "../persistence";
@@ -160,6 +161,7 @@ function FlowDrillInner({ composite: comp }: { composite: CompositeNode }) {
     let restoreSelection: (() => void) | null = null;
     let restoreArrange: (() => void) | null = null;
     let restoreDelete: (() => void) | null = null;
+    let restoreReposition: (() => void) | null = null;
     s.rebuilding = true;
     void (async () => {
       await comp.hydrate(ctorRegistry());
@@ -198,6 +200,9 @@ function FlowDrillInner({ composite: comp }: { composite: CompositeNode }) {
       // The keyboard-less delete button (mobile / tablet) goes through the slot, not RF's
       // per-surface Delete key — swap it to this level's delete so it can't hit MAIN.
       restoreDelete = swapDeleteSlot(() => deleteSelection());
+      // Docked-FC reposition: the component/keyboard callers go through the slot, which
+      // otherwise stays pointed at MAIN (a no-op for a host inside the drill-in).
+      restoreReposition = swapRepositionDockedSlot(repositionDockedTo);
       if (s.history.stack.length === 0) recordNow(comp, s);
     })();
     return () => {
@@ -205,6 +210,7 @@ function FlowDrillInner({ composite: comp }: { composite: CompositeNode }) {
       restoreSelection?.();
       restoreArrange?.();
       restoreDelete?.();
+      restoreReposition?.();
       isolateStore.exit();
       setActiveGraph(null);
       syncPositionsToComp(comp, s);
@@ -349,6 +355,12 @@ function FlowDrillInner({ composite: comp }: { composite: CompositeNode }) {
     [comp, s, recomputeTarget],
   );
 
+  // Docked FCs at THIS level follow their host, over the drill-in's own editor/view — the
+  // same reposition the main canvas uses, bound to this surface (fixes the drill-in no-op).
+  const repositionDockedTo = useCallback(
+    (hostId: string) => repositionDockedFor(comp.internalEditor, s.view as unknown as View, s.handlers.getContainer(), hostId),
+    [comp, s],
+  );
   // The SAME arrange factory as the main canvas (groups as blocks, members re-placed,
   // docked FCs re-homed) over this level; a bare ELK pass moved group bodies without
   // their members.
@@ -359,11 +371,11 @@ function FlowDrillInner({ composite: comp }: { composite: CompositeNode }) {
       view: s.view as unknown as View,
       container: s.handlers.getContainer() ?? document.body,
       ensureElk,
-      repositionDockedTo: () => {},
+      repositionDockedTo,
       isDestroyed: () => false,
     });
     return { tidy: arrangeFn, cleanup: makeCleanupFn(comp.internalEditor, s.view as unknown as View, arrangeFn) };
-  }, [comp, s]);
+  }, [comp, s, repositionDockedTo]);
   const settleArrange = useCallback((fit = true) => {
     if (fit) void fitView({ padding: 0.15, duration: 0 });
     void processGraph(recomputeTarget());
