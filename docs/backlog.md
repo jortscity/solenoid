@@ -74,19 +74,6 @@ The bundle `v2.0/24-obsidian-vault.md` is promoted to the flagship track; its §
 build rules and § Sequencing the order (A′ → A → B → D → C → F → I → J → E). Every item ships
 verified in the desktop app against the demo vault.
 
-- [ ] **Row verbs + Schedule critical-path Filter in the Remodel (Gantt) seed** — once A′ wiring
-  lands, put the "Critical path" Filter (Float = 0) back between Schedule's cube and its Display.
-- [ ] **Demo vault** (`demo-vault/`, checked in; mirrored as `tests/fixtures/vault/`): an mdbase
-  collection with `mdbase.yaml` types, a plain notes folder, a folder with `.obsidian/types.json`,
-  a daily-notes folder, TaskNotes-shaped task notes (frontmatter the plugin writes), a `.base`
-  view, wikilinks/embeds/tags, and README notes that narrate what each Solenoid seed does to it.
-  Doubles as the author's eyeball vault and the seed's data. With A.
-- [ ] **A′ row verbs take cubes** (fe, in progress) · **A Vault Folder → Cube + R3** (be, in
-  progress on the demo vault) · **B Write Properties** (fe, after A′) · **C modes + templates,
-  D Open in Obsidian, I reload cadence, R5 midnight rollover LANDED** (lead) · open: D's graph
-  stub note + `solenoid:` link (needs B's `frontmatterPatch`), E watcher (needs Stage 0). **J
-  headless seam LANDED** (`run-graph --vault / --tasknotes / --run`).
-
 ## Track H — Allocator-family nodes (author 2026-09-06: in)
 
 Each ships WITH a seed baked via `scripts/tune-seeds.mjs`; specs are the `1.4-plan.md` § Track H

@@ -64,9 +64,19 @@ Obsidian modes + templates** (C: overwrite | append | block via `managedBlock.ts
 `obsidian://**`), **Import Note reload cadence** (I) and the **midnight rollover** (R5,
 `volatileDates.ts`). The Mermaid card now collapses (it was `collapsible={false}`) and a
 collapsed Display holding a diagram shows a Diagram chip (`DiagramChip.tsx`; click re-expands).
-Held until A merges: J (headless `run-graph --vault / --tasknotes / --run`, which needs a Node
-fs provider behind `fileBridge`); E waits on the Stage-0 watcher; D's stub note waits on B's
-`frontmatterPatch`.
+Then: **Schedule became cube-in/cube-out** (author: "no in-cell string lists — that is what
+the cube is for"; Predecessors a list cell, `recordsToCube` in `frame.ts` as the shared
+rows→cube shape, a Note's frontmatter rows with list values emit a `cube` socket, the Remodel
+seed's tasks authored as such a Note) and **J the headless seam** landed (`fileBridge`
+FsProvider + `run-graph --vault / --tasknotes / --run`, `run-graph-vault.test.ts` over the
+demo vault). be's Vault Folder → Cube node merged (08ef0dbe); B moved to be to unstick them
+while fe wires A′. Then A′ merged (bfc010a3), **E the vault watcher** landed (`vaultWatch.ts`),
+and the author asked for a **Cube Input** ("vs a standard cube input" — with drill-down into the
+OTHER popup input editors, and a List Input editor for coherency): `CubeInputNode` + the cube popup
+as an editor bound to a records path (`cubeEditCell.tsx`, `literalEditors.ts`), List Input's chip
+→ the table popup as one raw column; the invariant is `subsystem-invariants.md` § Literal input
+editors. The Remodel seed's tasks are now a Cube Input and its critical-path Filter is back (A′).
+Open: D's stub note (needs B's `frontmatterPatch`).
 Also: fetcher cards name their data source; the remodel seed is Remodel (Gantt) fed by a
 Holidays node; `yaml` (mdbase schemas) + `qrcode` deps added on the author's word; CUMIPMT /
 CUMPRINC sign bug fixed with D2 (author: no op-picker exception). Queued by the author: collapsed
