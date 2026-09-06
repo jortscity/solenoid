@@ -716,6 +716,7 @@ export function VaultFolderComponent({ data, emit }: NodeProps<VaultFolderNodeTy
                 onPointerDown={stopDragStart} onMouseDown={(e) => e.stopPropagation()}
               >Choose…</button>
             </div>
+            <div className="sol-conn__note">Obsidian vault{data.folder ? ` · ${data.folder}` : ""}</div>
             <input
               className="sol-conn__url" type="text" value={folder} placeholder="Subfolder (blank = whole vault)" spellCheck={false}
               onChange={(e) => setFolder(e.target.value)}
