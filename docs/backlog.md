@@ -78,9 +78,7 @@ verified in the desktop app against the demo vault. Landed ledger: the bundle's 
   patched onto notes Write to Obsidian writes (`stamp` on for whole-document writes only).
 - [ ] **B follow-ups** (be): mdbase validation on write (refuse a row violating type / enum / min /
   max / required); `writeBase` (the live `.base` view) deferred.
-- [ ] **"Your vault as a table" seed** (fe): Vault Folder over `demo-vault/` → Filter `tags contains
-  book` → Display; SKIPPED offline in seedsCompute with the reason, or passes.
-- [ ] **Computed column over a cube** — Add Column / Computed Column are frame-only after A′; the
+- [ ] **Computed column over a cube** (fe) — Add Column / Computed Column are frame-only after A′; the
   F1 "Kitchen remodel from TaskNotes" seed needs Duration = `timeEstimate` ÷ hours-per-day on the
   tasks cube before Schedule. Then F1; F2 / F3 / F5 are seeds over the feed (no code).
 - [ ] **Author's desktop eyeball** of the flagship cards against `demo-vault/` (Settings ▸ Obsidian
