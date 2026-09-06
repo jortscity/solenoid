@@ -1,6 +1,5 @@
 import { ClassicPreset } from "rete";
 import { frameIn, frameOut, dateIn, dateOut, strOut, dateListIn } from "./shared";
-import { jsDateToSerial } from "./dateSerial";
 import { isSolError, type SolError } from "../errorValue";
 import { type FrameValue } from "../frame";
 import type { FrameHint } from "../frameHint";
@@ -20,7 +19,8 @@ export const SCHEDULE_MODE_OPTIONS: ReadonlyArray<{ value: ScheduleMode; label: 
 
 /** Today at midnight UTC as a serial — the start a fresh card schedules from. */
 function todaySerial(): number {
-  return Math.floor(jsDateToSerial(new Date()));
+  const d = new Date();
+  return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000 + 25569;
 }
 
 export class ScheduleNode extends ClassicPreset.Node {

@@ -52,7 +52,18 @@ F1–F4, H7, drill-in drawn cables). E4's premise was outdated (op cards already
 packs don't). **H6 Schedule** built by the lead: `scheduleCpm.ts` (pure CPM in working-day index
 space) + `nodes/schedule.ts` + `remodel-gantt` seed — see `node-coverage.md`. Author then:
 "go nuts with the Obsidian integration as planned" — be takes A (Vault Folder → Cube) after the
-Garden seed, fe takes A′ (row verbs take cubes) then B (Write Properties) after D2.
+Garden seed, fe takes A′ (row verbs take cubes) then B (Write Properties) after D2. Then (author,
+2026-09-07): the Obsidian + TaskNotes integration "is going to be our user adoption breakthrough"
+— promoted to THE flagship track (`backlog.md` § Obsidian + TaskNotes; a demo vault at
+`demo-vault/` is the fixture set AND the author's eyeball surface). Lead built on develop:
+**TaskNotes** feed node (F: Tasks cube / Calendar frame / Stats, `taskNotesApi.ts`), **Write
+Tasks** sink (F6, plan frame + Preview + Run), the **which-task-next** seed (F4), **Write to
+Obsidian modes + templates** (C: overwrite | append | block via `managedBlock.ts`; `{{date}}`
+`{{daily}}` `{{name}}` `{{doc}}` via `nameTemplate.ts`, a `date` input, live name preview).
+Also: fetcher cards name their data source; the remodel seed is Remodel (Gantt) fed by a
+Holidays node; `yaml` (mdbase schemas) + `qrcode` deps added on the author's word; CUMIPMT /
+CUMPRINC sign bug fixed with D2 (author: no op-picker exception). Queued by the author: collapsed
+pill hover preview, Mermaid node can't collapse, Display+Mermaid collapsed chip.
 ### SESSION DIGEST (2026-09-06 — C1 widget nodes, all six shipped)
 
 Built the rest of the Tier-1 widget bundle (`v2.0/16-widget-nodes.md`) on the Weather/Geocode

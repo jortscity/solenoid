@@ -2,13 +2,14 @@
 // LIVE svg, so this runs only from the Write node's Run click.
 
 import {
-  isDesktop, joinPath, ensureDir, writeTextFilePath, writeBinaryFilePath,
+  isDesktop, joinPath, ensureDir, writeTextFilePath, writeBinaryFilePath, readTextFilePath,
 } from "./fileBridge";
 import { nodeChartSvg, serializeSvgWithComputedStyles } from "./canvasCapture";
 import { dataUrlToBytes, sanitizeName } from "./imageAssets";
 import { assembleDocumentMarkdown, valueToObsidianBlock } from "./obsidianMarkdown";
 import { isImageValue, type ImageValue } from "./imageValue";
 import { type DocumentValue } from "./documentValue";
+import { spliceBlock } from "./managedBlock";
 
 const EXT_MIME: Record<string, string> = { png: "image/png", jpeg: "image/jpeg", jpg: "image/jpeg", gif: "image/gif", webp: "image/webp", svg: "image/svg+xml" };
 
@@ -62,6 +63,26 @@ async function rasterizeSvg(svgEl: SVGSVGElement): Promise<Uint8Array | null> {
   }
 }
 
+/** overwrite = the note is the document; append = the document is added at the end;
+ *  block = the writer owns one `%% solenoid:begin <name> %%` span (managedBlock.ts). */
+export type ObsidianWriteMode = "overwrite" | "append" | "block";
+
+/** The note's next text from its current text (null = no note yet) and the assembled
+ *  markdown, per mode. Pure; throws on a refused block splice. */
+export function mergeNoteText(existing: string | null, md: string, mode: ObsidianWriteMode, blockName: string): string {
+  if (mode === "overwrite" || existing === null) {
+    if (mode === "block") return spliceBlock("", blockName, md).text;
+    return md;
+  }
+  if (mode === "append") {
+    const body = existing.replace(/\s+$/, "");
+    return (body ? body + "\n\n" : "") + md;
+  }
+  const r = spliceBlock(existing, blockName, md);
+  if (r.refused) throw new Error(`Refused: ${r.refused}`);
+  return r.text;
+}
+
 export interface WriteVaultOptions {
   /** Absolute path to the vault root. */
   vault: string;
@@ -73,6 +94,10 @@ export interface WriteVaultOptions {
   name: string;
   /** ref name → the source node id feeding it (for chart rasterization). */
   refSources: Map<string, string>;
+  /** How the note takes the document; default overwrite. */
+  mode?: ObsidianWriteMode;
+  /** The managed block's name (mode block); the writer's node name. */
+  blockName?: string;
 }
 
 export interface WriteVaultResult {
@@ -132,7 +157,12 @@ export async function writeDocumentToVault(doc: DocumentValue, opts: WriteVaultO
 
   const md = await assembleDocumentMarkdown(doc, resolveRef);
   const notePath = await joinPath(noteDir, `${base}.md`);
-  await writeTextFilePath(notePath, md);
+  const mode = opts.mode ?? "overwrite";
+  let existing: string | null = null;
+  if (mode !== "overwrite") {
+    try { existing = await readTextFilePath(notePath); } catch { existing = null; }
+  }
+  await writeTextFilePath(notePath, mergeNoteText(existing, md, mode, opts.blockName ?? "Solenoid"));
 
   const rel = subParts.length ? `${subParts.join("/")}/${base}.md` : `${base}.md`;
   return { file: rel, assets: assetCount };
