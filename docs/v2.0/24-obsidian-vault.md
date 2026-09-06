@@ -201,11 +201,23 @@ understand is **refused** for that row; a missing key is appended before the clo
 note with no block gets one. Dates write as `YYYY-MM-DD`, datetimes as `YYYY-MM-DDTHH:MM:SS`
 (Obsidian's forms), logicals as `true`/`false`. mdbase-aware: when the note's type has a
 schema, validate the outgoing value (type / enum / minimum / maximum / required — an
-in-process subset, no CLI) and refuse the row rather than corrupt a record. Pure core:
+in-process subset, no CLI) and refuse the row rather than corrupt a record. **A new key
+arrives typed:** when `addMissing` creates a property the vault has never seen, B also
+registers its type in `.obsidian/types.json` (`number` / `checkbox` / `date` / `datetime` /
+`text` / `list` from the cell) — a JSON merge of one key, so the property panel and Bases
+treat a Solenoid-written `score` as a number from the first write, not as text guessed
+later. **Note references write as links:** a string cell that equals the vault-relative path
+or the name of an existing note (the reader's `path` / `name` / `links` cells) serializes as
+`"[[Name]]"` in frontmatter and `[[Name]]` in a table — Obsidian's graph view and Bases'
+`file.links` then see what Solenoid wrote; the vault listing already in memory is the lookup.
+The same rule applies to `frameToMarkdownTable` in Write to Obsidian. Pure core:
 `frontmatterPatch.ts` (`patchFrontmatter(text, patch): {text, refused[]}`), the ONE place
 that edits a note's YAML (a `onePatchPath` rule candidate).
 
-**C. Managed block write mode** on Write to Obsidian: `mode: overwrite | append | block`.
+**C. Managed block write mode** on Write to Obsidian: `mode: overwrite | append | block`, and
+a **templated file name**: `{{today}}` (the daily-note pattern, `YYYY-MM-DD` — configurable
+format literal), `{{name}}` (the node's addressable name), `{{doc}}` — so "append this run's
+summary to today's daily note" is `mode: append`, file `{{today}}`, subfolder `Daily`.
 `block` splices the assembled markdown between `%% solenoid:begin <node name> %%` and
 `%% solenoid:end %%` (Obsidian hides `%%` comments in reading view; the node's addressable
 name keys the pair, so two Write nodes can own two blocks in one note). First write appends
@@ -217,12 +229,17 @@ trick, nothing invisible written into the author's note. Pure
 markers inside a code fence (ignored — fences win), a begin with no end (append a fresh pair,
 leave the orphan).
 
-**D. Links both ways.** A note Write to Obsidian writes gets a `solenoid` frontmatter key,
-`"<document name> › <node name>"` — the addressable name, never the rete id
-(`../subsystem-invariants.md` § Addressable model); the note is Solenoid's output, so the
-provenance belongs on it. On B and F6 the same key is the **`stamp` toggle, off by default**:
-those notes are the user's records, and a provenance key on every task note is noise in every
-Bases view. Vault Folder, Import Note and both writers
+**D. Links both ways.** A note Write to Obsidian writes gets a `solenoid` frontmatter key —
+**a wikilink, `"[[Solenoid/<document name>]]"`**, not a string: the first write to a vault
+creates that **graph stub note** (`Solenoid/<document name>.md`, frontmatter `type: solenoid`,
+`nodes:` the list of writer node names, `updated:`; body: what this graph writes where, and
+with J the exact `run-graph … --run` line) and every later write refreshes its frontmatter.
+Obsidian's backlinks pane on any written note then answers "which graph wrote this", the
+graph view draws the edge, and a Bases view over `Solenoid/` lists every graph that touches
+the vault — provenance as a first-class note, using nothing but links. The node name stays in
+the key's value as `"[[Solenoid/<doc>]] › <node name>"`. On B and F6 the same key is the
+**`stamp` toggle, off by default**: those notes are the user's records, and a provenance key on
+every task note is noise in every Bases view. Vault Folder, Import Note and both writers
 get an **Open in Obsidian** button: `obsidian://open?vault=<basename of the vault
 path>&file=<vault-relative path, URL-encoded, no .md>` through `openExternal` (no new
 capability; Windows backslashes normalised to `/` first). A `solenoid://` deep link back
@@ -326,6 +343,15 @@ stranded cables through `dropStrandedFrontmatterCables`); (3) a per-node `vault`
 an imported note travels with the graph. Nothing else moves; `obsidian.test.ts` pins the
 disarmed-load rule for the writer, not this.
 
+**K. Graphs as notes (HOLD — the one idea past this bundle's line).** The text form
+(`textForm.ts`) is line-oriented and byte-stable; a Solenoid document could live IN the vault
+as `Solenoid/<name>.md` with the text form in a fenced block and the visual sidecar in a
+second — then a graph is a note: linkable, searchable, synced by Obsidian Sync, listed by
+Bases, and D's stub becomes the document itself. It is also `21-collaboration.md` Stage 0
+by another door (a synced folder holding the file), and it reopens the save format (`P1`
+freeze in `../2.0-plan.md`). Not in this bundle: D's stub note gives the linking payoff
+without touching persistence; revisit when P1 lands.
+
 **J. Headless seam** (what makes G's reverse path and the fixture tests real). A connection
 node fetches in the background through the Tauri bridges, so under `npm run run-graph` a Vault
 Folder or TaskNotes node emits nothing today. The readers' pure cores already take files /
@@ -393,7 +419,7 @@ embed in a note (item 4) covers the round trip from the other side.
 | Filter / Sort / Head / Distinct / Get Row (exist) | passthrough | table input becomes `cubeIn` | adopts: cube in → cube out | — (Filter gains `contains` / `is empty` for list cells) | `selectCubeRows` in `frame.ts` · `cubeRowVerbs.test.ts` |
 | Get Column / Decision Matrix / H6 (exist) | — | table input becomes `cubeIn` | unchanged (list / ranking frame / H6: the input cube + 4 columns) | — | same test file |
 | Write Properties | sink · Connections | `cube` (frame widens) | `plan` frame | vault, keys, addMissing, stamp, writeBase | `frontmatterPatch.ts` (+ nested frame → `- {k: v}` block) · `frontmatterPatch.test.ts` (round-trips: untouched bytes identical; cube → vault → cube equal) |
-| Write to Obsidian (+mode) | sink (exists) | `document` | — | + mode | `managedBlock.ts` · `managedBlock.test.ts` |
+| Write to Obsidian (+mode) | sink (exists) | `document` | — | + mode, fileName template | `managedBlock.ts` · `managedBlock.test.ts`; `fileNameTemplate.ts` (pure) |
 | TaskNotes | connection · Connections | `from`, `to` (dates, Calendar provider only) | Tasks: `cube`; Calendar: `frame`; Stats: scalars | provider, refreshMinutes | `taskNotesApi.ts` · `taskNotesApi.test.ts` (fixtures per endpoint) |
 | Write Tasks | sink · Connections | `cube` (frame widens) | `plan` frame | mode (create / update), keys, stamp | shares `taskNotesApi.ts`; list cells → the API's arrays |
 | (CLI) `run-graph --vault --tasknotes --run` | — | — | — | — | `scripts/run-graph.test.ts` gains a vault-fixture case and a `--run` case against a temp copy |

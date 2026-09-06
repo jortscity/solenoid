@@ -59,7 +59,12 @@ skipped as a Filter on `links`), Filter's list ops become Bases' `contains / con
 containsAll / isEmpty`, the footer's missing stats (Range, Stddev, Earliest/Latest,
 Checked/Unchecked) went to the backlog, and the "never write `.base`" call is reversed into B's
 `writeBase` toggle — a `![[x.base#View]]` inside a managed block is a LIVE table in the note.
-Not taken: the formula language, view types, reading a `.base` as a query. Follow-up ask ("what about TaskNotes itself?") grew item F
+Not taken: the formula language, view types, reading a `.base` as a query. Last
+additions ("anything else?"): the provenance stamp is a WIKILINK to a graph stub note
+(`Solenoid/<doc>.md`) so backlinks answer "which graph wrote this"; B registers a new key's type
+in `.obsidian/types.json` and writes note references as `[[links]]`; Write to Obsidian gets a
+`{{today}}` file-name template for daily notes; "graphs as notes" (text form in the vault) is
+item K, HOLD until the save-format freeze. Follow-up ask ("what about TaskNotes itself?") grew item F
 into six sub-items — the ranking is by what Bases formulas cannot do (dependency traversal,
 Monte Carlo, pivots), read via the API so field mapping stays the plugin's job.
 
