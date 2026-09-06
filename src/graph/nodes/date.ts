@@ -1,6 +1,9 @@
 import { ClassicPreset } from "rete";
-import { dateOut, numIn, numOut, strIn, dateListIn, dateComboIn, dateComboOut, numListIn, numListOut, broadcast, broadcastErr, readInput, BASIS_DOC, type BroadcastResult } from "./shared";
+import { dateOut, dateIn, numIn, numOut, strIn, strListIn, frameOut, dateListIn, dateComboIn, dateComboOut, numListIn, numListOut, broadcast, broadcastErr, readInput, BASIS_DOC, type BroadcastResult } from "./shared";
 import { type SolError } from "../errorValue";
+import { convertZone, worldClockRows, worldClockFrame } from "../timeZone";
+import { type FrameValue } from "../frame";
+import { type Shape } from "../frameShape";
 import { serialToJsDate, jsDateToSerial } from "./dateSerial";
 import { dateFromParts, timeFraction, parseDateOnly, parseTimeOfDay, weekInfo, dateDiff, dateDiffNeedsBasis, epochToSerial, serialToEpoch, dateTrunc, type WeekInfoOp, type DateDiffOp, type EpochUnit, type DateTruncUnit } from "./dateOps";
 export { dateDiffNeedsBasis, type WeekInfoOp, type DateDiffOp, type EpochUnit, type DateTruncUnit } from "./dateOps";
@@ -554,5 +557,82 @@ export class DateTruncNode extends ClassicPreset.Node {
     const result = broadcast((s) => dateTrunc(s, this.unit, this.ceiling), inputs.date?.[0] ?? null);
     this.cachedResult = result;
     return { result };
+  }
+}
+
+// ─── TIME ZONE CONVERT ────────────────────────────────────────────────────────
+// "3pm ET in Tokyo": a datetime read in one zone, expressed in another. Pure Intl,
+// DST-correct (the offset is read at the instant). From/To take Geocode's time-zone
+// output or a typed IANA name.
+
+export class TimeZoneConvertNode extends ClassicPreset.Node {
+  static socketDocs: Record<string, string> = {
+    datetime: "The date and time to convert. Wire a Date Input or NOW.",
+    from: "The zone the date/time is in now, an IANA name like America/New_York.",
+    to: "The zone to express it in, an IANA name like Asia/Tokyo.",
+    result: "The same moment, on the To zone's wall clock.",
+  };
+  label: string;
+  stringLiterals: Record<string, string> = { from: "", to: "" };
+  cachedResult: number | SolError | null = null;
+  width = 220; height = 200;
+
+  constructor(init?: { label?: string }) {
+    super("TimeZoneConvert");
+    this.label = init?.label ?? "Time Zone Convert";
+    this.addInput("datetime", dateIn("Date & time"));
+    this.addInput("from", strIn("From"));
+    this.addInput("to", strIn("To"));
+    this.addOutput("result", dateOut("Converted"));
+  }
+
+  data(inputs: { datetime?: number[]; from?: string[]; to?: string[] }): { result: number | SolError | null } {
+    const serial = readInput(inputs.datetime, NaN);
+    const from = readInput(inputs.from, this.stringLiterals.from ?? "");
+    const to = readInput(inputs.to, this.stringLiterals.to ?? "");
+    // Nothing to convert until every part is present — stay quiet rather than erroring.
+    if (typeof serial !== "number" || !Number.isFinite(serial)
+        || typeof from !== "string" || from.trim() === ""
+        || typeof to !== "string" || to.trim() === "") {
+      this.cachedResult = null;
+      return { result: null };
+    }
+    const result = convertZone(serial, from, to);
+    this.cachedResult = result;
+    return { result };
+  }
+}
+
+// ─── WORLD CLOCK ──────────────────────────────────────────────────────────────
+// A list of zones → the current local time in each, as a frame for a docked Report.
+// Recomputes with the graph; a live tick is the Tier-2 "Ticking Now" item.
+
+export class WorldClockNode extends ClassicPreset.Node {
+  static socketDocs: Record<string, string> = {
+    zones: "One IANA zone per entry, like America/New_York or Asia/Tokyo.",
+    clock: "A row per zone: the place and its current local time.",
+  };
+  label: string;
+  stringLiterals: Record<string, string> = { zones: "" };
+  cachedResult: FrameValue | null = null;
+  width = 220; height = 210;
+
+  constructor(init?: { label?: string }) {
+    super("WorldClock");
+    this.label = init?.label ?? "World Clock";
+    this.addInput("zones", strListIn("Zones"));
+    this.addOutput("clock", frameOut("World Clock"));
+  }
+
+  // Fixed columns (declareOnce) so downstream pickers know them before a compute.
+  frameShape(): Shape {
+    return { columns: [{ name: "Place", type: "string" }, { name: "Local", type: "string" }] };
+  }
+
+  data(inputs: { zones?: string[][] }): { clock: FrameValue } {
+    const zones = inputs.zones?.[0] ?? [];
+    const frame = worldClockFrame(worldClockRows(zones, Date.now()));
+    this.cachedResult = frame;
+    return { clock: frame };
   }
 }

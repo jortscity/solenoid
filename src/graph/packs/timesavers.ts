@@ -2,7 +2,7 @@
 // HYPOTENUSE claim, formula presets, and nodes with no Excel answer at all.
 
 import { HYPOTENUSE_ENTRY } from "./geometry";
-import { ReverseTextNode, SpellNumberNode } from "../rete-nodes";
+import { ReverseTextNode, SpellNumberNode, TimeZoneConvertNode, WorldClockNode } from "../rete-nodes";
 import { placeFormulas, type Pack, type FormulaPackEntry } from "./packShared";
 
 export const TIMESAVER_NUMERIC: FormulaPackEntry[] = [
@@ -74,6 +74,26 @@ export const TIMESAVERS_PACK: Pack = {
     ...placeFormulas(["Numbers", "Arithmetic"], TIMESAVER_NUMERIC),
     ...placeFormulas(["Text", "Transform"], TIMESAVER_TEXT),
     ...placeFormulas(["Date & Time"], TIMESAVER_DATE),
+    {
+      path: ["Date & Time"],
+      entry: {
+        type: "ts-timezone-convert",
+        label: "Time Zone Convert",
+        description: "Moves a date and time from one time zone to another, daylight saving included. Name the zones the IANA way, like America/New_York and Asia/Tokyo. No single Excel function.",
+        keywords: "timezone tz utc gmt offset dst daylight saving meeting convert iana city",
+        create: () => new TimeZoneConvertNode(),
+      },
+    },
+    {
+      path: ["Date & Time"],
+      entry: {
+        type: "ts-world-clock",
+        label: "World Clock",
+        description: "The current local time in a list of time zones, as a table of place and time for a Report. Name the zones the IANA way, like Europe/London. No Excel equivalent.",
+        keywords: "world clock timezone tz local time cities dashboard meeting planner iana",
+        create: () => new WorldClockNode(),
+      },
+    },
     {
       path: ["Text", "Transform"],
       entry: {
