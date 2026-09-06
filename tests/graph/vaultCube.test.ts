@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { notesToCube, dateFromName, type VaultNote, type VaultTypeSources } from "../../src/graph/vaultCube";
-import { parseMdbaseCollection, mdbaseTypeFor } from "../../src/graph/mdbaseTypes";
+import { parseMdbaseCollection, mdbaseTypeFor, mdbaseSchemaFor, validateAgainst } from "../../src/graph/mdbaseTypes";
 import { parseObsidianTypes } from "../../src/graph/obsidianTypes";
 import { parseDailyNotesConfig } from "../../src/graph/dailyNotesConfig";
 import { isFrameValue, type CubeValue, type CubeColumn } from "../../src/graph/frame";
@@ -146,3 +146,24 @@ describe("cube brand", () => {
     expect(cube.__cube).toBe(true);
   });
 });
+
+describe("mdbase validation (Write Properties, item B)", () => {
+  const collection = parseMdbaseCollection(read("Projects/mdbase.yaml"), [read("Projects/_types/project.md")]);
+  const sch = mdbaseSchemaFor(collection, "Kitchen remodel.md")!;
+
+  it("extracts enum + min/max from the schema", () => {
+    expect(sch).not.toBeNull();
+    expect(sch.constraints.status.enum).toEqual(["planning", "active", "blocked", "done"]);
+    expect(sch.constraints.priority).toMatchObject({ kind: "number", min: 1, max: 5 });
+    expect(sch.required).toContain("status");
+  });
+
+  it("validateAgainst refuses out-of-enum and out-of-range, passes valid", () => {
+    expect(validateAgainst("nope", sch.constraints.status)).toMatch(/must be one of/);
+    expect(validateAgainst("active", sch.constraints.status)).toBeNull();
+    expect(validateAgainst(9, sch.constraints.priority)).toMatch(/at most 5/);
+    expect(validateAgainst(0, sch.constraints.priority)).toMatch(/at least 1/);
+    expect(validateAgainst(3, sch.constraints.priority)).toBeNull();
+    expect(validateAgainst("x", sch.constraints.priority)).toMatch(/must be a number/);
+  });
+})
