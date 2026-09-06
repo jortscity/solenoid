@@ -7,8 +7,8 @@
     {
       "id": "geocode",
       "type": "GeocodeNode",
-      "x": 0,
-      "y": 0,
+      "x": 139,
+      "y": 222,
       "init": {
         "label": "Boise"
       },
@@ -19,8 +19,8 @@
     {
       "id": "weather",
       "type": "WeatherNode",
-      "x": 300,
-      "y": 0,
+      "x": 464,
+      "y": 156,
       "init": {
         "label": "Boise weather",
         "unit": "C",
@@ -32,8 +32,8 @@
     {
       "id": "note-a",
       "type": "NoteNode",
-      "x": 0,
-      "y": 320,
+      "x": 34,
+      "y": 34,
       "init": {
         "label": "Where & the weather",
         "body": "Type a place. Geocode turns it into latitude, longitude and a time zone, and Weather pulls the daily forecast. Allow the document to connect in Settings, Data, and it fills in.",
@@ -46,8 +46,8 @@
     {
       "id": "today",
       "type": "TodayNowNode",
-      "x": 820,
-      "y": 0,
+      "x": 946,
+      "y": 323,
       "init": {
         "label": "Today",
         "op": "today"
@@ -56,8 +56,8 @@
     {
       "id": "filterPast",
       "type": "FilterFrameNode",
-      "x": 820,
-      "y": 200,
+      "x": 1254,
+      "y": 34,
       "init": {
         "label": "Days behind",
         "condConfig": {
@@ -78,8 +78,8 @@
     {
       "id": "colPast",
       "type": "GetColumnNode",
-      "x": 1080,
-      "y": 220,
+      "x": 1579,
+      "y": 114,
       "init": {
         "label": "Rain (behind)",
         "readAs": "number"
@@ -91,8 +91,8 @@
     {
       "id": "aggPast",
       "type": "AggregateNode",
-      "x": 1340,
-      "y": 240,
+      "x": 1904,
+      "y": 116,
       "init": {
         "label": "Rain last 14 days",
         "op": "sum"
@@ -101,8 +101,8 @@
     {
       "id": "filterFuture",
       "type": "FilterFrameNode",
-      "x": 820,
-      "y": 560,
+      "x": 1254,
+      "y": 400,
       "init": {
         "label": "Days ahead",
         "condConfig": {
@@ -123,8 +123,8 @@
     {
       "id": "colFuture",
       "type": "GetColumnNode",
-      "x": 1080,
-      "y": 580,
+      "x": 1579,
+      "y": 480,
       "init": {
         "label": "Rain (ahead)",
         "readAs": "number"
@@ -136,8 +136,8 @@
     {
       "id": "aggFuture",
       "type": "AggregateNode",
-      "x": 1340,
-      "y": 600,
+      "x": 1904,
+      "y": 489,
       "init": {
         "label": "Rain next 7 days",
         "op": "sum"
@@ -146,8 +146,8 @@
     {
       "id": "note-b",
       "type": "NoteNode",
-      "x": 1600,
-      "y": 300,
+      "x": 811,
+      "y": 135,
       "init": {
         "label": "Rain math",
         "body": "Split the forecast at today: the days behind and the days ahead, then total the rain in each. Your own rule over the data, not a fixed number off a website.",
@@ -160,8 +160,8 @@
     {
       "id": "note-c",
       "type": "NoteNode",
-      "x": 2300,
-      "y": 0,
+      "x": 2191,
+      "y": 34,
       "init": {
         "label": "The dashboard",
         "body": "A docked Report reads the two totals; the Alert watches the coming week's rain. Leave the document open and Weather's refresh keeps it live.",
@@ -174,8 +174,8 @@
     {
       "id": "report",
       "type": "ReportNode",
-      "x": 2300,
-      "y": 220,
+      "x": 2221,
+      "y": 222,
       "init": {
         "label": "Watering call",
         "color": "green",
@@ -187,8 +187,8 @@
     {
       "id": "alert",
       "type": "AlertNode",
-      "x": 2320,
-      "y": 470,
+      "x": 2281,
+      "y": 460,
       "init": {
         "label": "Water the garden?",
         "mode": "range"
@@ -204,7 +204,7 @@
       "id": "grp-where",
       "type": "GroupNode",
       "x": 10,
-      "y": 5,
+      "y": -24,
       "init": {
         "label": "Where & the weather",
         "members": [
@@ -214,15 +214,15 @@
         ],
         "color": "sky",
         "collapsed": false,
-        "width": 520,
-        "height": 500
+        "width": 722,
+        "height": 559
       }
     },
     {
       "id": "grp-rain",
       "type": "GroupNode",
-      "x": 790,
-      "y": -40,
+      "x": 787,
+      "y": -24,
       "init": {
         "label": "Rain math",
         "members": [
@@ -237,15 +237,15 @@
         ],
         "color": "amber",
         "collapsed": false,
-        "width": 1093,
-        "height": 833
+        "width": 1325,
+        "height": 780
       }
     },
     {
       "id": "grp-dash",
       "type": "GroupNode",
-      "x": 2305,
-      "y": -35,
+      "x": 2167,
+      "y": -24,
       "init": {
         "label": "The dashboard",
         "members": [
@@ -255,8 +255,8 @@
         ],
         "color": "green",
         "collapsed": false,
-        "width": 278,
-        "height": 725
+        "width": 393,
+        "height": 731
       }
     }
   ],
