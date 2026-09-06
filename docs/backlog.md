@@ -72,7 +72,21 @@ elkjs-vs-rete-auto-arrange peer conflict left with the plugin.
 
 The bundle `v2.0/24-obsidian-vault.md` is promoted to the flagship track; its § Defaults are the
 build rules and § Sequencing the order (A′ → A → B → D → C → F → I → J → E). Every item ships
-verified in the desktop app against the demo vault.
+verified in the desktop app against the demo vault. Landed ledger: the bundle's § What stands today.
+
+- [ ] **D second half** (be): the graph stub note `Solenoid/<doc>.md` + the `solenoid:` wikilink
+  patched onto notes Write to Obsidian writes (`stamp` on for whole-document writes only).
+- [ ] **B follow-ups** (be): mdbase validation on write (refuse a row violating type / enum / min /
+  max / required); `writeBase` (the live `.base` view) deferred.
+- [ ] **"Your vault as a table" seed** (fe): Vault Folder over `demo-vault/` → Filter `tags contains
+  book` → Display; SKIPPED offline in seedsCompute with the reason, or passes.
+- [ ] **Computed column over a cube** — Add Column / Computed Column are frame-only after A′; the
+  F1 "Kitchen remodel from TaskNotes" seed needs Duration = `timeEstimate` ÷ hours-per-day on the
+  tasks cube before Schedule. Then F1; F2 / F3 / F5 are seeds over the feed (no code).
+- [ ] **Author's desktop eyeball** of the flagship cards against `demo-vault/` (Settings ▸ Obsidian
+  → the repo's demo-vault): Vault Folder (be's ten-step checklist in the 09-07 digest), Write
+  Properties Preview/Run on a copy, TaskNotes with the plugin's API on, Write to Obsidian block mode
+  + `{{daily}}`, the Cube Input editor's three drill targets.
 
 ## Track H — Allocator-family nodes (author 2026-09-06: in)
 
