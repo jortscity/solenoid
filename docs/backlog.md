@@ -91,12 +91,6 @@ verified in the desktop app against the demo vault. Landed ledger: the bundle's 
 Each ships WITH a seed baked via `scripts/tune-seeds.mjs`; specs are the `1.4-plan.md` § Track H
 sections. Gate defaults below are the lead's picks unless the author overrules.
 
-- [ ] **H3 Group Cost Settle** — people frame (Paid, optional Share) → transfers frame (From · To ·
-  Amount) + per-person Net; greedy biggest-creditor-to-biggest-debtor. Default: equal split (Share
-  weights when present). Seed "Trip split".
-- [ ] **Hours-balancing seed on the Allocator** ("Balance a team's hours": people Min · Max · Weight,
-  the Allocator with `h` on Min, a Display of Share as %) + loosen the Allocator's socket copy from
-  "price range" to "range". Zero code beyond copy.
 - [ ] **H1 Payoff Planner** — debts frame (Balance, APR, Min payment) + `extra`; Avalanche |
   Snowball; monthly cascade, closed-form. Output mode: summary (Debt · Months · Interest · Payoff
   date) default, schedule frame (Month · per-debt balance) the other. Currency unit carried. Seed
