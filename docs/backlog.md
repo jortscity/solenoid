@@ -104,11 +104,6 @@ sections. Gate defaults below are the lead's picks unless the author overrules.
 
 ## Canvas chrome (queued by the author 2026-09-07, "not top priority")
 
-- [ ] **Mermaid node can't collapse** (author 2026-09-07) — the card has no working collapse;
-  every node collapses to its stadium pill (`subsystem-invariants.md` § Group collapse / node
-  collapse). Bug.
-- [ ] **Collapsed Display holding a Mermaid figure shows the wrong chip** (author 2026-09-07) —
-  the collapsed pill should carry the diagram chip like the other figure kinds (`ValueChip`). Bug.
 - [ ] **Collapsed stadium pill hover preview** — a collapsed node's input pill shows a hover
   preview listing EVERY cable item (name + value), not just the first. Author's extension to
   consider with it: a special Conduit → bundled cable → Cube node (the bundle's lanes land as one
