@@ -33,6 +33,7 @@ import { pickGeocodeMatch } from "../geocodeProvider";
 import { NAGER_COUNTRIES, filterHolidays, daysToNextHoliday } from "../holidaysProvider";
 import { FX_CURRENCIES } from "../fxProvider";
 import { frameRowCount } from "../frame";
+import { useVaultWatch } from "./useVaultWatch";
 import { TASKNOTES_KEY_ID, TASKNOTES_PROVIDER_META, type TaskNotesProvider } from "../taskNotesApi";
 import { dropInputCables } from "./cablePrune";
 import { dropStrandedFrontmatterCables } from "../noteFrontmatterSync";
@@ -685,6 +686,8 @@ export function VaultFolderComponent({ data, emit }: NodeProps<VaultFolderNodeTy
   const [minutes, setMinutes] = useState(data.refreshMinutes);
   const desktop = isDesktop();
   useAutoRefresh(data.id, minutes);
+  // Obsidian saved under this folder → re-read (bundle E; the cadence stays the stopgap).
+  useVaultWatch(data.vault, folder, () => { void refreshConnection(data.id); }, desktop);
   useEffect(() => { setFolder(data.folder); }, [data.folder]);
 
   async function chooseVault() {

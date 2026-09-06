@@ -5,7 +5,7 @@ import { NodeShell, type NodeProps } from "./nodeKit";
 import { collapseStore } from "../collapseStore";
 import { DiagramChip } from "./DiagramChip";
 import { NodeSocket } from "./NodeSocket";
-import { useConnectedInputs } from "./inlineInput";
+import { useConnectedInputs, InlineInputs } from "./inlineInput";
 import { MermaidView } from "./MermaidView";
 import { processGraph } from "../process";
 import { FieldResizeGrip } from "./FieldResizeGrip";
@@ -98,7 +98,9 @@ export function MermaidComponent({ data, emit }: NodeProps<MermaidNodeType>) {
       </div>
       <div className="solenoid-node__section-divider" />
       <MermaidView source={source} className="solenoid-mermaid--card" />
-      {/* Collapsed: the pill carries the Diagram chip (like a Chart's); its click re-expands. */}
+      {/* Collapsed: the leading socket is gone, so the pill's input dot comes from the
+          collapsed InlineInputs (the Chart card's pattern), and the Diagram chip sits beside it. */}
+      {collapsed && <InlineInputs node={data} emit={emit} keys={["source"]} />}
       <div className="solenoid-node__collapsed-only solenoid-node__display-value" style={{ justifyContent: "flex-end" }}>
         <DiagramChip value={{ __mermaid: true, source, title: data.label }} pinNodeId={data.id} />
       </div>
