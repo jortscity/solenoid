@@ -4,7 +4,7 @@ import type { Emit } from "./components/nodeKit";
 import { ClassicPreset } from "rete";
 import type { JSXElementConstructor } from "react";
 import {
-  AngleDialNode, SlicerNode, CableSwitchNode, NoteNode, ReportNode, SessionHistoryNode, PresentationNode, ImageNode, FileLinkNode, SvgPickerNode,
+  AngleDialNode, SlicerNode, CableSwitchNode, NoteNode, ReportNode, SessionHistoryNode, PresentationNode, ImageNode, FileLinkNode, SvgPickerNode, QrCodeNode,
   SparklineNode, ChartNode, MergePlotsNode, HistogramNode, KpiNode, ProportionNode, SankeyNode, SurfaceNode, MermaidNode, GaugeNode, HeatmapCellNode, ChartBuilderNode, DateInputNode, DateRangeNode, XYPadNode,
   WaterfallNode, CandlestickNode, BoxplotNode, CalendarHeatmapNode, QuiverNode, SevenSegNode, RecordNode,
   PointPlotterNode, CurveNode, GridPainterNode,
@@ -80,7 +80,7 @@ import {
   TornadoNode,
 } from "./rete-nodes";
 import {
-  AngleDialComponent, SlicerComponent, CableSwitchComponent, NoteComponent, ReportComponent, SessionHistoryComponent, PresentationComponent, ImageComponent, FileLinkComponent, SvgPickerComponent,
+  AngleDialComponent, SlicerComponent, CableSwitchComponent, NoteComponent, ReportComponent, SessionHistoryComponent, PresentationComponent, ImageComponent, FileLinkComponent, SvgPickerComponent, QrCodeComponent,
   SparklineComponent, ChartComponent, MergePlotsComponent, HistogramComponent, KpiComponent, ProportionComponent, SankeyComponent, SurfaceComponent, MermaidComponent, GaugeComponent, HeatmapCellComponent, ChartBuilderComponent, DateInputComponent, DateRangeComponent, XYPadComponent,
   WaterfallComponent, CandlestickComponent, BoxplotComponent, CalendarHeatmapComponent, QuiverComponent, SevenSegComponent, RecordComponent,
   PointPlotterComponent, CurveComponent, GridPainterComponent,
@@ -182,6 +182,7 @@ export const NODE_COMPONENTS: ReadonlyArray<readonly [NodeCtor, AnyNodeComponent
   [ImageNode,       comp(ImageComponent)],
   [FileLinkNode,    comp(FileLinkComponent)],
   [SvgPickerNode,   comp(SvgPickerComponent)],
+  [QrCodeNode,      comp(QrCodeComponent)],
   [SparklineNode,   comp(SparklineComponent)],
   [ChartNode,       comp(ChartComponent)],
   [MergePlotsNode,  comp(MergePlotsComponent)],

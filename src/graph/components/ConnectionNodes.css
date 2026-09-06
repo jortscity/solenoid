@@ -167,3 +167,18 @@
 }
 .sol-conn__refresh:hover:not(:disabled) { border-color: var(--node-accent, var(--accent)); }
 .sol-conn__refresh:disabled { opacity: 0.4; cursor: default; }
+
+/* QR Code preview: centered, on white so the code stays scannable in dark theme. */
+.sol-conn__qr-preview {
+  display: flex;
+  justify-content: center;
+  padding: 8px;
+  background: #ffffff;
+  border-radius: 4px;
+  margin-top: 4px;
+}
+.sol-conn__qr-preview img {
+  width: 160px;
+  height: 160px;
+  image-rendering: pixelated;
+}

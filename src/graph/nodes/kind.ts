@@ -49,6 +49,7 @@ import { ReconcileNode } from "./frame";
 import { SlicerNode, CableSwitchNode, DateInputNode, XYPadNode, PointPlotterNode, CurveNode, GridPainterNode } from "./control";
 import { SparklineNode, ChartNode, MergePlotsNode, MermaidNode, GaugeNode, HeatmapCellNode, ChartBuilderNode, ProportionNode, SankeyNode, HistogramNode, SurfaceNode, WaterfallNode, CandlestickNode, BoxplotNode, CalendarHeatmapNode, QuiverNode, SevenSegNode, RecordNode } from "./visual";
 import { NoteNode, ImageNode, FileLinkNode, SvgPickerNode } from "./annotation";
+import { QrCodeNode } from "./qr";
 import { CompositeNode, CompositeInputNode, CompositeOutputNode } from "./composite";
 import {
   TableInputNode, MatDetNode, MatSolveNode, MatEigenNode, TableMultNode, TableUnitNode, TableDiagNode, TableOuterNode, TableTransposeNode,
@@ -84,6 +85,7 @@ export function nodeKindOf(node: ClassicPreset.Node): NodeKind {
   // readout, a record card) stay on the display gold.
   if (node instanceof SparklineNode || node instanceof ChartNode || node instanceof MergePlotsNode || node instanceof GaugeNode || node instanceof HeatmapCellNode || node instanceof TornadoNode || node instanceof SurfaceNode) return "chart";
   if (node instanceof WaterfallNode || node instanceof CandlestickNode || node instanceof BoxplotNode || node instanceof CalendarHeatmapNode || node instanceof ProportionNode || node instanceof QuiverNode || node instanceof HistogramNode || node instanceof SankeyNode) return "chart";
+  if (node instanceof QrCodeNode) return "chart";
   if (node instanceof MermaidNode || node instanceof ChartBuilderNode || node instanceof SevenSegNode || node instanceof RecordNode) return "display";
   if (node instanceof ConvertNode || node instanceof CastNode) return "convert";
   if (

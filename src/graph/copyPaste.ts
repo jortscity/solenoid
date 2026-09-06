@@ -90,6 +90,7 @@ export const INIT_FIELD_ORDER = [
   "pickedLabel",
   "pastDays", "forecastDays",
   "country", "region", "year",
+  "qrTemplate",
 ] as const;
 
 // Object-valued extras, appended after INIT_FIELD_ORDER in this fixed order.
