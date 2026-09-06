@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { patchFrontmatter, cellToYaml, renderKey, writableKeys, planPropertyWrites, propertyPlanFrame } from "../../src/graph/frontmatterPatch";
+import { patchFrontmatter, cellToYaml, renderKey, writableKeys, planPropertyWrites, propertyPlanFrame, resolveKey } from "../../src/graph/frontmatterPatch";
 import type { CubeValue } from "../../src/graph/frame";
 import { parseDateToSerial } from "../../src/graph/nodes/dateSerial";
 import { isFrameValue } from "../../src/graph/frame";
@@ -141,5 +141,25 @@ describe("the write plan", () => {
     const f = propertyPlanFrame(planPropertyWrites(cube, "status", NO_NAMES));
     expect(f.columns.map((c) => c.name)).toEqual(["path", "key", "before", "after", "action"]);
     expect(f.columns.find((c) => c.name === "action")!.values.every((v) => v === "pending")).toBe(true);
+  });
+})
+
+describe("resolveKey — what a write would do + the current value", () => {
+  const note = "---\nstatus: active\npriority: 5\ntags:\n  - home\n---\nbody\n";
+  it("unchanged when the rendered value already matches", () => {
+    expect(resolveKey(note, "priority", 5)).toEqual({ action: "unchanged", before: "5" });
+  });
+  it("update when it differs, exposing the current value", () => {
+    expect(resolveKey(note, "priority", 3)).toEqual({ action: "update", before: "5" });
+  });
+  it("add when the key is absent", () => {
+    expect(resolveKey(note, "lead", "Sam")).toEqual({ action: "add", before: "" });
+  });
+  it("a list's current value is shown; a matching list is unchanged", () => {
+    expect(resolveKey(note, "tags", ["home"])).toEqual({ action: "unchanged", before: "- home" });
+  });
+  it("refused for an unparsed nested block", () => {
+    const nested = "---\nmeta:\n  a: 1\n---\nb\n";
+    expect(resolveKey(nested, "meta", "x").action).toBe("refused");
   });
 })

@@ -223,6 +223,28 @@ export function planPropertyWrites(cube: CubeValue, keysCsv: string, noteNames: 
   return rows;
 }
 
+/** Resolve what writing `value` to `key` would do to `text`, and the note's CURRENT value
+ *  (a display string) — Preview + Run read this without writing. `add` (key absent),
+ *  `unchanged` (the rendered lines already match), `update`, or `refused` (nested block). */
+export function resolveKey(text: string, key: string, value: YamlValue): { action: "add" | "unchanged" | "update" | "refused"; before: string } {
+  const lines = text.split("\n");
+  if (lines[0]?.trim() !== FENCE) return { action: "add", before: "" };
+  let close = -1;
+  for (let i = 1; i < lines.length; i++) if (lines[i].trim() === FENCE) { close = i; break; }
+  if (close === -1) return { action: "add", before: "" };
+  const interior = lines.slice(1, close);
+  const span = scanKeys(interior).get(key);
+  if (!span) return { action: "add", before: "" };
+  const existing = interior.slice(span.start, span.end + 1);
+  const before = span.shape === "scalar"
+    ? (TOP_KEY.exec(existing[0])?.[2] ?? "").trim()
+    : existing.slice(1).map((l) => l.trim()).filter(Boolean).join(", ");
+  if (span.shape === "block") return { action: "refused", before };
+  const rendered = renderKey(key, value);
+  const same = existing.length === rendered.length && existing.every((l, i) => l === rendered[i]);
+  return { action: same ? "unchanged" : "update", before };
+}
+
 /** The plan rows → the `plan` frame (path · key · before · after · action). */
 export function propertyPlanFrame(rows: readonly PlanRow[]): FrameValue {
   return {
