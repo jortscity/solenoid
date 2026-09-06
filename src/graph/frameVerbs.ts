@@ -5,7 +5,7 @@ import {
   type FrameValue, type FrameColumn, type FrameCell, type FrameColType,
   type CubeValue, type CubeColumn, type CubeCell,
   frameRowCount, makeHeaders, cubeFromColumns, cubeRowCount, inferColumn, isFrameValue,
-  isCubeValue, frameFromRows, formatFrameCell,
+  isCubeValue, frameFromRows, formatFrameCell, selectCubeRows,
 } from "./frame";
 import { isSolError, solError } from "./errorValue";
 import { forAggregate, coerceLogical, guardFinite } from "./valueKinds";
@@ -33,15 +33,24 @@ export type AggOp =
  *  #DIV/0!/#N/A/… out of a list/frame). The error pair is JS-oracle only: the
  *  native Polars engine degrades a per-cell error to null on upload, so the frame
  *  Filter routes an error-predicate through the oracle rather than the plan. */
-export type FilterOp = ComparisonOp | "contains" | "startsWith" | "endsWith" | "isblank" | "notblank" | "iserror" | "noterror";
+export type FilterOp =
+  | ComparisonOp | "contains" | "startsWith" | "endsWith" | "isblank" | "notblank" | "iserror" | "noterror"
+  // A′ list-cell predicates (cube only): membership on a list cell — "notes tagged x" is
+  // THE vault query. Bases' trio (contains / any / all, comma-separated) plus is-empty.
+  | "listContains" | "listContainsAny" | "listContainsAll" | "listEmpty";
 
 /** The value-less filter ops — no comparison value (the Value field hides). Shared
  *  so the node data() paths and the UI agree. */
-export const VALUELESS_FILTER_OPS: ReadonlySet<FilterOp> = new Set<FilterOp>(["isblank", "notblank", "iserror", "noterror"]);
+export const VALUELESS_FILTER_OPS: ReadonlySet<FilterOp> = new Set<FilterOp>(["isblank", "notblank", "iserror", "noterror", "listEmpty"]);
 
 /** The error predicates — the frame Filter runs these in the JS oracle (the native
  *  engine can't hold per-cell errors). */
 export const ERROR_FILTER_OPS: ReadonlySet<FilterOp> = new Set<FilterOp>(["iserror", "noterror"]);
+
+/** The list-cell predicates — they read a cube cell that IS a list, so they run only in
+ *  the cube JS branch (Polars never holds a list cell). A scalar/other op on a list cell,
+ *  and any list op on a frame column, is a #SHAPE! at the call site. */
+export const LIST_FILTER_OPS: ReadonlySet<FilterOp> = new Set<FilterOp>(["listContains", "listContainsAny", "listContainsAll", "listEmpty"]);
 
 /** One predicate of a multi-condition filter (B-2). `matchCase` rides
  *  PER-CONDITION — "Region eq west (any case) AND Code contains X (exact)". */
@@ -139,36 +148,50 @@ function encodeCell(v: FrameCell): unknown {
 /** Order rows by one column. Blanks (`null`) and per-cell errors sort LAST in
  *  both directions (Excel's blanks-last), stably; present values flip with dir.
  *  Stable on ties. */
-export function sortByColumn(f: FrameValue, by: string, dir: "asc" | "desc"): FrameValue {
-  const col = requireColumn(f, by);
-  const cmp = comparatorFor(col.type);
+/** The sorted row order over a column read through `cellAt` — the shared index math the
+ *  frame path (sortByColumn) and the cube path (sortCube) both call, so a frame and a cube
+ *  of the same data sort identically. */
+function sortedIndexOrder(len: number, cellAt: (i: number) => FrameCell, type: FrameColType, dir: "asc" | "desc"): number[] {
+  const cmp = comparatorFor(type);
   // NaN joins the tail: a `(a-b)` comparator makes NaN ordering depend on input
   // order (every comparison is false). ±Inf sorts normally (a real magnitude).
   const isTail = (i: number) => {
-    const v = cellAt(col, i);
+    const v = cellAt(i);
     return v === null || isSolError(v) || (typeof v === "number" && Number.isNaN(v));
   };
-  const idx = Array.from({ length: frameRowCount(f) }, (_, i) => i);
+  const idx = Array.from({ length: len }, (_, i) => i);
   idx.sort((i, j) => {
     const ti = isTail(i), tj = isTail(j);
     if (ti || tj) return ti && tj ? i - j : ti ? 1 : -1; // tail last, stable
-    const c = cmp(cellAt(col, i), cellAt(col, j));
+    const c = cmp(cellAt(i), cellAt(j));
     return c !== 0 ? (dir === "desc" ? -c : c) : i - j;  // stable on ties
   });
-  return reorderRows(f, idx);
+  return idx;
+}
+
+export function sortByColumn(f: FrameValue, by: string, dir: "asc" | "desc"): FrameValue {
+  const col = requireColumn(f, by);
+  return reorderRows(f, sortedIndexOrder(frameRowCount(f), (i) => cellAt(col, i), col.type, dir));
+}
+
+/** The first-seen unique row order for keys read through `keyAt` — shared by distinctRows
+ *  (frame) and distinctCube (cube). */
+function distinctIndexOrder(len: number, keyAt: (i: number) => string): number[] {
+  const seen = new Set<string>();
+  const keep: number[] = [];
+  for (let i = 0; i < len; i++) {
+    const key = keyAt(i);
+    if (!seen.has(key)) { seen.add(key); keep.push(i); }
+  }
+  return keep;
 }
 
 /** Keep the first occurrence of each unique row (on `columns`, or all columns).
  *  Two `null`s are equal; an error keys by its code. */
 export function distinctRows(f: FrameValue, columns?: readonly string[]): FrameValue {
   const cols = (columns ?? f.columns.map((c) => c.name)).map((n) => requireColumn(f, n));
-  const seen = new Set<string>();
-  const keep: number[] = [];
-  for (let i = 0; i < frameRowCount(f); i++) {
-    const key = JSON.stringify(cols.map((c) => encodeCell(cellAt(c, i))));
-    if (!seen.has(key)) { seen.add(key); keep.push(i); }
-  }
-  return reorderRows(f, keep);
+  return reorderRows(f, distinctIndexOrder(frameRowCount(f),
+    (i) => JSON.stringify(cols.map((c) => encodeCell(cellAt(c, i))))));
 }
 
 /** The distinct non-blank cell TEXTS of one column, in first-seen order — the
@@ -265,6 +288,10 @@ export function requireTextList(op: FilterOp, type: FrameColType): void {
 }
 
 export function passesFilter(cell: FrameCell, op: FilterOp, value: FrameCell, type: FrameColType, matchCase: boolean): boolean {
+  // List-cell predicates run only on the cube path (passesListFilter); a frame column
+  // never holds a list, so they never match here (the Filter UI offers them only for a
+  // cube input).
+  if (op === "listContains" || op === "listContainsAny" || op === "listContainsAll" || op === "listEmpty") return false;
   // These run BEFORE the null/error guard below, since they exist to SELECT on those
   // states; `noterror` keeps a null — pair it with `notblank` to drop both.
   if (op === "iserror")  return isSolError(cell);
@@ -324,6 +351,98 @@ export function filterRowsMulti(f: FrameValue, combine: FilterCombine, condition
     if (kept !== complement) keep.push(i);
   }
   return reorderRows(f, keep);
+}
+
+// ─── Cube row verbs (A′) ──────────────────────────────────────────────────────
+// The row verbs reorder or keep WHOLE cube rows, computed off the cube's scalar columns;
+// list and sub-table cells ride along by reference (selectCubeRows), so Polars never sees
+// a nested cell. Row indices come from the SAME selectors the frame path uses, so a cube
+// and a frame of the same data order identically. Errors THROW a tagged SolError like the
+// frame verbs; the calling node turns the throw into a value.
+
+/** A structural key for a cube cell — distinct on a cube keys on every column, list and
+ *  sub-table cells included. Scalars reuse encodeCell; a list encodes its elements; a
+ *  nested frame/cube encodes its columns × cells. Bounded by the cube's depth. */
+export function encodeCubeCell(v: CubeCell): unknown {
+  if (Array.isArray(v)) return ["l", v.map(encodeCubeCell)];
+  if (isCubeValue(v)) return ["c", v.columns.map((c) => [c.name, c.cells.map(encodeCubeCell)])];
+  if (isFrameValue(v)) return ["f", v.columns.map((c) => [c.name, c.values.map(encodeCell)])];
+  return encodeCell(v as FrameCell);
+}
+
+/** Read a cube column AS A SCALAR frame column (typed via inferColumn, which also recovers
+ *  per-cell units). A list or sub-table cell makes it non-scalar → #SHAPE!. */
+function cubeScalarColumn(cube: CubeValue, name: string): FrameColumn {
+  const col = cube.columns.find((c) => c.name === name);
+  if (!col) throw solError("#REF!", `column "${name}" not found`);
+  for (const cell of col.cells) {
+    if (Array.isArray(cell) || isFrameValue(cell) || isCubeValue(cell)) {
+      throw solError("#SHAPE!", `"${name}" has list or table cells; this needs a scalar column`);
+    }
+  }
+  return inferColumn(name, col.cells);
+}
+
+/** Bases' list-cell predicates (A′). A non-list cell is treated as a one-element list (a
+ *  scalar tag), a blank as the empty list. Membership is case-folded unless matchCase;
+ *  contains-any / contains-all split the value on commas. */
+export function passesListFilter(cell: CubeCell, op: FilterOp, value: FrameCell, matchCase: boolean): boolean {
+  const items = Array.isArray(cell) ? cell : cell === null ? [] : [cell];
+  if (op === "listEmpty") return items.length === 0;
+  const fold = (s: string) => (matchCase ? s : s.toLowerCase());
+  const has = (needle: string) =>
+    items.some((it) => !Array.isArray(it) && !isFrameValue(it) && !isCubeValue(it) && it !== null && fold(String(it)) === fold(needle));
+  if (op === "listContains") return has(String(value ?? "").trim());
+  const needles = String(value ?? "").split(",").map((s) => s.trim()).filter((s) => s !== "");
+  if (op === "listContainsAny") return needles.some(has);
+  if (op === "listContainsAll") return needles.every(has);
+  return false;
+}
+
+/** Sort a cube by a scalar column (list column → #SHAPE!). */
+export function sortCube(cube: CubeValue, by: string, dir: "asc" | "desc"): CubeValue {
+  const col = cubeScalarColumn(cube, by);
+  return selectCubeRows(cube, sortedIndexOrder(cubeRowCount(cube), (i) => cellAt(col, i), col.type, dir));
+}
+
+/** Keep the first occurrence of each unique cube row (all columns, list/nested included). */
+export function distinctCube(cube: CubeValue): CubeValue {
+  return selectCubeRows(cube, distinctIndexOrder(cubeRowCount(cube),
+    (i) => JSON.stringify(cube.columns.map((c) => encodeCubeCell(c.cells[i] ?? null)))));
+}
+
+/** A contiguous cube row window (first / last / skip / range), matching sliceRows. */
+export function sliceCube(cube: CubeValue, mode: "first" | "last" | "skip" | "range", n: number, to?: number): CubeValue {
+  const [start, end] = sliceBounds(cubeRowCount(cube), mode, n, to);
+  return selectCubeRows(cube, Array.from({ length: end - start }, (_, k) => start + k));
+}
+
+/** Keep cube rows passing ALL/ANY of the conditions (the filterRowsMulti twin). A list op
+ *  reads the raw list cell; a scalar op reads the inferred scalar column. */
+export function filterCube(cube: CubeValue, combine: FilterCombine, conditions: readonly FilterCond[], complement = false): CubeValue {
+  if (conditions.length === 0) return complement ? selectCubeRows(cube, []) : cube;
+  const resolved = conditions.map((c) => {
+    if (LIST_FILTER_OPS.has(c.op)) {
+      const raw = cube.columns.find((cc) => cc.name === c.column);
+      if (!raw) throw solError("#REF!", `column "${c.column}" not found`);
+      return { list: true as const, cells: raw.cells };
+    }
+    const col = cubeScalarColumn(cube, c.column);
+    requireTextColumn(c.op, col.type, c.column);
+    return { list: false as const, col };
+  });
+  const keep: number[] = [];
+  for (let i = 0; i < cubeRowCount(cube); i++) {
+    const passOne = (c: FilterCond, j: number) => {
+      const r = resolved[j];
+      return r.list
+        ? passesListFilter(r.cells[i] ?? null, c.op, c.value, c.matchCase ?? false)
+        : passesFilter(cellAt(r.col, i), c.op, c.value, r.col.type, c.matchCase ?? false);
+    };
+    const kept = combine === "and" ? conditions.every(passOne) : conditions.some(passOne);
+    if (kept !== complement) keep.push(i);
+  }
+  return selectCubeRows(cube, keep);
 }
 
 /** Most-frequent finite number; ties broken by first occurrence (Excel MODE.SNGL). */
@@ -1968,8 +2087,9 @@ export function dropBlankRows(f: FrameValue, mode: "all" | "any"): FrameValue {
 
 /** Row slices beyond head's first-N: last N, skip the first N, or a 1-based
  *  inclusive range — Power Query's Keep/Remove Rows family on one op. */
-export function sliceRows(f: FrameValue, mode: "first" | "last" | "skip" | "range", n: number, to?: number): FrameValue {
-  const rows = frameRowCount(f);
+/** The [start, end) row window for a slice mode — shared by sliceRows (frame) and
+ *  sliceCube (cube), so both take the same contiguous rows. */
+export function sliceBounds(rows: number, mode: "first" | "last" | "skip" | "range", n: number, to?: number): [number, number] {
   const N = Math.max(0, Math.trunc(n));
   let start = 0, end = rows;
   if (mode === "first") end = Math.min(rows, N);
@@ -1977,6 +2097,11 @@ export function sliceRows(f: FrameValue, mode: "first" | "last" | "skip" | "rang
   else if (mode === "skip") start = Math.min(rows, N);
   else { start = Math.max(0, Math.trunc(n) - 1); end = Math.min(rows, Math.trunc(to ?? n)); }
   if (end < start) end = start;
+  return [start, end];
+}
+
+export function sliceRows(f: FrameValue, mode: "first" | "last" | "skip" | "range", n: number, to?: number): FrameValue {
+  const [start, end] = sliceBounds(frameRowCount(f), mode, n, to);
   return { __frame: true, columns: f.columns.map((c) => ({ ...c, values: c.values.slice(start, end) })) };
 }
 
