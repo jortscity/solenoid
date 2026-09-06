@@ -30,6 +30,10 @@ and its entry deleted. Ruled-out-forever ideas: `out-of-scope.md`; settled ratio
 
 ## Reopen only if the trigger returns
 
+- **Drawn cables in the composite drill-in** (author 2026-09-06: drop if overly complex — it is).
+  The drawn-cable store is one module-global singleton wired main-only; a drill-in layer needs it
+  instanced per surface, a store seam through the layer / capture / inspector, per-composite
+  commit routing, and storage in `CompositeInternalSnapshot`. Reopen only on the author's word.
 - **1.4 walk deferrals, 2026-09-06** (the author: "defer for later" / "defer"; plan sections in
   `1.4-plan.md` stay the spec): **D9** AI palette re-enable + verification tail; **D10**
   document-level FC defaults; **E3** Materials & Mechanical pack content; **F1** obstacle-avoiding

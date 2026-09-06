@@ -81,8 +81,6 @@ elkjs-vs-rete-auto-arrange peer conflict left with the plugin.
 - [ ] **Drawn cables: nothing tows one.** A drawn arrow annotating a node stays put when that node
   moves, Tidy runs, or a group expands. An optional per-END anchor to a node id would fix it and is
   the natural v2; deliberately out of v1 (they take no part in layout).
-- [ ] **Drawn cables in the drill-in.** `hooks.drawnCables` is main-only (saveBindsMain), so a
-  composite's internal canvas has no layer. Needs per-composite storage before the hook can be on.
 
 ## Formatting & units
 
@@ -92,11 +90,6 @@ elkjs-vs-rete-auto-arrange peer conflict left with the plugin.
   downstream-flow work has been lived with, plus the source-node control design.
 
 ## Units
-
-- [ ] **Per-element mixed-unit trig (1.4 D7, author 2026-09-04c).** `resolveTrigModes` reads one
-  socket-level unit for a whole list; a list whose cells carry their own deg/rad tags should
-  interpret each cell in its own unit. The one compute-time unit read in `trigMode.ts`; pin with a
-  mixed-list fixture; untagged lists byte-identical.
 
 ## Seeds
 
