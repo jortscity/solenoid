@@ -74,6 +74,8 @@ The bundle `v2.0/24-obsidian-vault.md` is promoted to the flagship track; its §
 build rules and § Sequencing the order (A′ → A → B → D → C → F → I → J → E). Every item ships
 verified in the desktop app against the demo vault.
 
+- [ ] **Row verbs + Schedule critical-path Filter in the Remodel (Gantt) seed** — once A′ wiring
+  lands, put the "Critical path" Filter (Float = 0) back between Schedule's cube and its Display.
 - [ ] **Demo vault** (`demo-vault/`, checked in; mirrored as `tests/fixtures/vault/`): an mdbase
   collection with `mdbase.yaml` types, a plain notes folder, a folder with `.obsidian/types.json`,
   a daily-notes folder, TaskNotes-shaped task notes (frontmatter the plugin writes), a `.base`
@@ -83,10 +85,7 @@ verified in the desktop app against the demo vault.
   progress on the demo vault) · **B Write Properties** (fe, after A′) · **C modes + templates,
   D Open in Obsidian, I reload cadence, R5 midnight rollover LANDED** (lead) · open: D's graph
   stub note + `solenoid:` link (needs B's `frontmatterPatch`), J headless seam, E watcher (needs
-  Stage 0). **F TaskNotes feed LANDED** (3561fad8: Tasks cube / Calendar frame / Stats; seed
-  `which-task-next` = F4) and **F6 Write Tasks LANDED** (sink, Run-only, Preview + `plan`) —
-  open on F: `/api/nlp/create` for a single text column; the F1 "Kitchen remodel from TaskNotes"
-  seed once A′ lets Schedule read the tasks cube; F2/F3/F5 are seeds over the feed (no code).
+  Stage 0).
 
 ## Track H — Allocator-family nodes (author 2026-09-06: in)
 
