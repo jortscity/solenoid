@@ -2,12 +2,12 @@ import { ClassicPreset } from "rete";
 import {
   numberSocket, stringSocket, logicalSocket, dateSocket,
   listSocket, strListSocket, logicalListSocket, dateListSocket, frameSocket,
-  SolenoidSocket,
+  SolenoidSocket, cubeSocket,
 } from "../sockets";
 import { parseDateToSerial } from "./date";
 import { chartOut, strOut, documentOut } from "./shared";
 import { makeDocument, type DocumentValue } from "../documentValue";
-import { isFrameValue, type FrameValue, type FrameColumn, type FrameColType, type FrameCell } from "../frame";
+import { isFrameValue, recordsToCube, type FrameValue, type FrameColumn, type FrameColType, type FrameCell, type CubeValue } from "../frame";
 import { shapeOfFrameValue, type Shape } from "../frameShape";
 import type { ImageValue } from "../imageValue";
 import type { SvgValue } from "../svgValue";
@@ -21,7 +21,7 @@ import {
 
 /** The value a frontmatter key emits: a scalar/list (FrontmatterValue) or, for a `frame`
  *  field, a built FrameValue. */
-type EmittedValue = FrontmatterValue | FrameValue;
+type EmittedValue = FrontmatterValue | FrameValue | CubeValue;
 
 // A Note is a pure SOURCE: `---`-fenced frontmatter keys become typed OUTPUT
 // sockets, and it deliberately mints no inputs — that is the Report node's job.
@@ -36,9 +36,10 @@ const FIELD_SOCKETS: Record<FrontmatterFieldType, SolenoidSocket> = {
   logicallist: logicalListSocket,
   datelist: dateListSocket,
   frame: frameSocket,
+  cube: cubeSocket,
 };
 
-const FIELD_BASE: Record<Exclude<FrontmatterFieldType, "frame">, "number" | "string" | "logical" | "date"> = {
+const FIELD_BASE: Record<Exclude<FrontmatterFieldType, "frame" | "cube">, "number" | "string" | "logical" | "date"> = {
   number: "number", string: "string", logical: "logical", date: "date",
   list: "number", strlist: "string", logicallist: "logical", datelist: "date",
 };
@@ -53,7 +54,7 @@ function reshapePin(
   pinned: FrontmatterFieldType | undefined,
   guessed: FrontmatterFieldType,
 ): FrontmatterFieldType | undefined {
-  if (!pinned || pinned === "frame" || guessed === "frame") return undefined;
+  if (!pinned || pinned === "frame" || guessed === "frame" || pinned === "cube" || guessed === "cube") return undefined;
   if (LIST_TYPES.has(pinned) === LIST_TYPES.has(guessed)) return pinned;
   const base = FIELD_BASE[pinned];
   return LIST_TYPES.has(guessed) ? LIST_OF[base] : base;
@@ -77,7 +78,8 @@ function rowsToFrame(rows: FrontmatterRow[]): FrameValue {
   const names: string[] = [];
   for (const r of rows) for (const k of Object.keys(r)) if (!names.includes(k)) names.push(k);
   const columns: FrameColumn[] = names.map((name) => {
-    const cells = rows.map((r) => (name in r ? r[name] : null));
+    // A frame cell is scalar; a list that slipped in keeps its first element.
+    const cells = rows.map((r) => { const v = name in r ? r[name] : null; return Array.isArray(v) ? (v[0] ?? null) : v; });
     return { name, type: frameColType(cells), values: cells as FrameCell[] };
   });
   return { __frame: true, columns };
@@ -104,6 +106,8 @@ function coerceScalar(v: FrontmatterScalar, base: "number" | "string" | "logical
 
 function coerceValue(value: FrontmatterValue, type: FrontmatterFieldType): EmittedValue {
   if (type === "frame") return rowsToFrame(Array.isArray(value) ? (value as FrontmatterRow[]) : []);
+  // A row list with a list value is a cube (recordsToCube keeps the list as a list cell).
+  if (type === "cube") return recordsToCube(Array.isArray(value) ? (value as Record<string, unknown>[]) : []);
   const base = FIELD_BASE[type];
   if (LIST_TYPES.has(type)) {
     const arr = Array.isArray(value) ? value : value === null ? [] : [value];

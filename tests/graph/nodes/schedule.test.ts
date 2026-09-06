@@ -3,39 +3,39 @@ import { ScheduleNode } from "../../../src/graph/rete-nodes";
 import { extractInit } from "../../../src/graph/copyPaste";
 import { parseDateToSerial, formatDateSerial } from "../../../src/graph/nodes/dateSerial";
 import { isSolError } from "../../../src/graph/errorValue";
-import { isFrameValue, type FrameValue } from "../../../src/graph/frame";
+import { cubeFromColumns, isCubeValue, type CubeValue } from "../../../src/graph/frame";
 
 const MON = parseDateToSerial("2026-01-05");
-const f: FrameValue = { __frame: true, columns: [
-  { name: "Task", type: "string", values: ["A", "B"] },
-  { name: "Duration", type: "number", values: [2, 1] },
-  { name: "Predecessors", type: "string", values: [null, "A"] },
-] };
+const c: CubeValue = cubeFromColumns([
+  { name: "Task", cells: ["A", "B"], type: "string" },
+  { name: "Duration", cells: [2, 1], type: "number" },
+  { name: "Predecessors", cells: [[], ["A"]] },
+]);
 
 describe("ScheduleNode", () => {
-  it("schedules a wired frame from a wired start; the three outputs agree", () => {
+  it("takes a cube and a wired start; the three outputs agree; the schedule is a cube", () => {
     const n = new ScheduleNode();
-    const out = n.data({ tasks: [f], start: [MON] });
-    expect(isFrameValue(out.frame)).toBe(true);
+    expect(Object.keys(n.inputs)).toEqual(["tasks", "start", "holidays"]);
+    expect(Object.keys(n.outputs)).toEqual(["cube", "finish", "gantt"]);
+    const out = n.data({ tasks: [c], start: [MON] });
+    expect(isCubeValue(out.cube)).toBe(true);
     expect(formatDateSerial(out.finish as number, "YYYY-MM-DD")).toBe("2026-01-07");
     expect(String(out.gantt).startsWith("gantt")).toBe(true);
-    expect(n.cachedResult).toBe(out.frame);
+    expect(n.cachedResult).toBe(out.cube);
   });
 
   it("unwired start = today; a wired BLANK start schedules nothing (value-semantics: propagate)", () => {
     const n = new ScheduleNode();
-    const today = n.data({ tasks: [f] });
-    expect(isFrameValue(today.frame)).toBe(true);
-    const blank = n.data({ tasks: [f], start: [null] });
-    expect(blank.frame).toBeNull();
+    expect(isCubeValue(n.data({ tasks: [c] }).cube)).toBe(true);
+    const blank = n.data({ tasks: [c], start: [null] });
+    expect(blank.cube).toBeNull();
     expect(blank.finish).toBeNull();
     expect(n.cachedResult).toBeNull();
   });
 
   it("calendar mode counts weekends; the mode round-trips through extractInit and a stale value falls back", () => {
     const n = new ScheduleNode({ mode: "calendar" });
-    const out = n.data({ tasks: [f], start: [parseDateToSerial("2026-01-09")] });
-    // Fri 9 + Sat 10 for A, then B on Sun 11.
+    const out = n.data({ tasks: [c], start: [parseDateToSerial("2026-01-09")] });
     expect(formatDateSerial(out.finish as number, "YYYY-MM-DD")).toBe("2026-01-11");
     expect(extractInit(n as never).mode).toBe("calendar");
     expect(new ScheduleNode({ mode: "bogus" as never }).mode).toBe("working");
@@ -43,14 +43,10 @@ describe("ScheduleNode", () => {
 
   it("a verb error comes out every socket as the one #VALUE! and is cached", () => {
     const n = new ScheduleNode();
-    const bad: FrameValue = { __frame: true, columns: [
-      { name: "Task", type: "string", values: ["A"] },
-      { name: "Duration", type: "number", values: [1] },
-      { name: "Predecessors", type: "string", values: ["A"] },
-    ] };
+    const bad = cubeFromColumns([{ name: "Task", cells: ["A"], type: "string" }, { name: "Duration", cells: [1], type: "number" }, { name: "Predecessors", cells: [["A"]] }]);
     const out = n.data({ tasks: [bad], start: [MON] });
-    expect(isSolError(out.frame) && out.frame.code).toBe("#VALUE!");
-    expect(out.gantt).toBe(out.frame);
-    expect(n.cachedGantt).toBe(out.frame);
+    expect(isSolError(out.cube) && out.cube.code).toBe("#VALUE!");
+    expect(out.gantt).toBe(out.cube);
+    expect(n.cachedGantt).toBe(out.cube);
   });
 });
