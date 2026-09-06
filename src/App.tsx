@@ -28,6 +28,7 @@ import { HudStack } from "./graph/components/HudStack";
 import { FrameHintLayer } from "./graph/components/FrameHintLayer";
 import { SelectionActionsBar } from "./graph/components/SelectionActionsBar";
 import { WebDemoBanner } from "./graph/WebDemoBanner";
+import { installExternalLinkGuard } from "./graph/externalLinks";
 import "./App.css";
 import "./graph/StatusBar.css";
 import "./mobile.css";
@@ -65,6 +66,7 @@ function MainApp() {
     const t = setTimeout(autoShowWhatsNewOnce, 1400);
     return () => clearTimeout(t);
   }, []);
+  useEffect(installExternalLinkGuard, []);
 
   return (
     <div className="solenoid-app">
