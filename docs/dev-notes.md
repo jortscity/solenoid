@@ -78,8 +78,11 @@ as an editor bound to a records path (`cubeEditCell.tsx`, `literalEditors.ts`), 
 editors. The Remodel seed's tasks are now a Cube Input and its critical-path Filter is back (A′).
 D's stub note + `solenoid:` link landed (be, 10a9f4c5); be is on mdbase validation for B; fe on
 the computed column over a cube (then the F1 seed). Lead: **Track H** — the `team-hours` seed
-(Allocator copy loosened to "range"), **H3 Group Cost Settle** + the `trip-split` seed. Open in
-Track H: H1 Payoff Planner. **Vault Folder eyeball checklist** (be, for
+(Allocator copy loosened to "range"), **H3 Group Cost Settle** + the `trip-split` seed. **H1
+Payoff Planner** + the `debt-payoff` seed landed too — Track H is complete (H2/H4/H5 stay
+uncalled, H7 waits on a calendar). Author: the cube editor's nested cells must DRILL, not open a
+popup above a popup — done (editable list / table levels on the breadcrumb); checked on a phone
+viewport. **Vault Folder eyeball checklist** (be, for
 the author, Settings ▸ Obsidian → `demo-vault/`): add a Vault Folder → the vault chip defaults from
 the setting; blank folder → Refresh → column preview lists path/name/folder/ext/size/created/
 modified/tags/links/embeds/date then frontmatter keys; folder = Projects → typed columns (mdbase:

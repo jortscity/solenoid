@@ -86,16 +86,6 @@ verified in the desktop app against the demo vault. Landed ledger: the bundle's 
   Properties Preview/Run on a copy, TaskNotes with the plugin's API on, Write to Obsidian block mode
   + `{{daily}}`, the Cube Input editor's three drill targets.
 
-## Track H — Allocator-family nodes (author 2026-09-06: in)
-
-Each ships WITH a seed baked via `scripts/tune-seeds.mjs`; specs are the `1.4-plan.md` § Track H
-sections. Gate defaults below are the lead's picks unless the author overrules.
-
-- [ ] **H1 Payoff Planner** — debts frame (Balance, APR, Min payment) + `extra`; Avalanche |
-  Snowball; monthly cascade, closed-form. Output mode: summary (Debt · Months · Interest · Payoff
-  date) default, schedule frame (Month · per-debt balance) the other. Currency unit carried. Seed
-  "Debt payoff".
-
 ## Canvas chrome (queued by the author 2026-09-07, "not top priority")
 
 - [ ] **Collapsed stadium pill hover preview** — a collapsed node's input pill shows a hover

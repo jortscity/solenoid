@@ -352,8 +352,8 @@ object CHANGED. The invariants that make this correct:
 Every non-scalar literal source edits through the table popup: **Table Input** (raw cells,
 `onSaveRaw`), **Frame Input** (literal-source grid, `onSaveSource` / `onCommitSource`), **List
 Input** (one raw column, `onSaveRaw` → `applyListRows`), and **Cube Input** (the cube popup in
-edit mode, whose cells hand off to the List / Frame editors bound to a records path and drill
-deeper for a nested cube). The stored truth is always TEXT on the node (`tableText`, `frameText`,
+edit mode: a nested cell drills to an editable list / table / cube LEVEL on the breadcrumb — one
+window, never a popup above a popup — each level bound to a records path). The stored truth is always TEXT on the node (`tableText`, `frameText`,
 the List rows' `stringLiterals`, `cubeText`); a Save rewrites that text and recomputes, never a
 derived value. Reopens if a literal source grows its own editor widget instead of binding the
 popup, or if an editor writes a derived value back.
