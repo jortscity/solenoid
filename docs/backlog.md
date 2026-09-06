@@ -79,9 +79,12 @@ verified in the desktop app against the demo vault.
   a daily-notes folder, TaskNotes-shaped task notes (frontmatter the plugin writes), a `.base`
   view, wikilinks/embeds/tags, and README notes that narrate what each Solenoid seed does to it.
   Doubles as the author's eyeball vault and the seed's data. With A.
-- [ ] **A′ row verbs take cubes** (fe, in progress) · **A Vault Folder → Cube + R3** (be, next) ·
-  **B Write Properties** (fe, after A′) · then D, C, F (TaskNotes feed + F1–F6), I, J, E per the
-  bundle. TaskNotes fixtures: one JSON per endpoint under `tests/fixtures/tasknotes/`.
+- [ ] **A′ row verbs take cubes** (fe, in progress) · **A Vault Folder → Cube + R3** (be, in
+  progress on the demo vault) · **B Write Properties** (fe, after A′) · then D, C, I, J, E per the
+  bundle. **F TaskNotes feed LANDED** (3561fad8: Tasks cube / Calendar frame / Stats; seed
+  `which-task-next` = F4) and **F6 Write Tasks LANDED** (sink, Run-only, Preview + `plan`) —
+  open on F: `/api/nlp/create` for a single text column; the F1 "Kitchen remodel from TaskNotes"
+  seed once A′ lets Schedule read the tasks cube; F2/F3/F5 are seeds over the feed (no code).
 
 ## Track H — Allocator-family nodes (author 2026-09-06: in)
 
