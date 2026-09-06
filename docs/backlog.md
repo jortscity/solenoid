@@ -84,8 +84,8 @@ verified in the desktop app against the demo vault.
 - [ ] **A′ row verbs take cubes** (fe, in progress) · **A Vault Folder → Cube + R3** (be, in
   progress on the demo vault) · **B Write Properties** (fe, after A′) · **C modes + templates,
   D Open in Obsidian, I reload cadence, R5 midnight rollover LANDED** (lead) · open: D's graph
-  stub note + `solenoid:` link (needs B's `frontmatterPatch`), J headless seam, E watcher (needs
-  Stage 0).
+  stub note + `solenoid:` link (needs B's `frontmatterPatch`), E watcher (needs Stage 0). **J
+  headless seam LANDED** (`run-graph --vault / --tasknotes / --run`).
 
 ## Track H — Allocator-family nodes (author 2026-09-06: in)
 
