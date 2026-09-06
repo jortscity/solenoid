@@ -9,6 +9,7 @@ import {
   type FilterCond,
 } from "../../src/graph/frameVerbs";
 import { isSolError } from "../../src/graph/errorValue";
+import { ComputedColumnNode } from "../../src/graph/nodes/frame";
 
 // A′: the row verbs take cubes. These pin the frameVerbs cube engine — the cube path
 // reorders/keeps WHOLE rows off the flat scalar columns (nested cells ride by reference),
@@ -148,6 +149,41 @@ describe("filterCube — list-cell ops (Bases)", () => {
   });
   it("listEmpty keeps rows with no tags", () => {
     expect(keep("listEmpty", "")).toEqual(["c"]);
+  });
+});
+
+describe("Computed Column over a cube", () => {
+  const tasks = () => cubeFromColumns([
+    { name: "title", cells: ["A", "B"], type: "string" },
+    { name: "timeEstimate", cells: [60, 120], type: "number" },
+    { name: "tags", cells: [["work"], ["home", "urgent"]] },
+  ]);
+  function compute(expr: string, name: string): CubeValue {
+    const n = new ComputedColumnNode({ expr });
+    n.stringLiterals.name = name;
+    return n.data({ frame: [tasks()] as never }).frame as CubeValue;
+  }
+
+  it("adds a scalar column computed off the cube's scalar columns; the result is a cube", () => {
+    const c = compute("@timeEstimate / 60", "hours");
+    expect(isCubeValue(c)).toBe(true);
+    expect(colCells(c, "hours")).toEqual([1, 2]);
+    expect(c.columns.map((k) => k.name)).toEqual(["title", "timeEstimate", "tags", "hours"]);
+  });
+
+  it("the list column rides through by reference", () => {
+    const src = tasks();
+    const n = new ComputedColumnNode({ expr: "@timeEstimate / 60" });
+    n.stringLiterals.name = "hours";
+    const c = n.data({ frame: [src] as never }).frame as CubeValue;
+    expect(colCells(c, "tags")[0]).toBe(colCells(src, "tags")[0]);
+  });
+
+  it("referencing a list column is #SHAPE! per cell (a nested cell is opaque to the formula)", () => {
+    const c = compute("@timeEstimate + @tags", "x");
+    const cells = colCells(c, "x");
+    expect(cells.every((v) => isSolError(v))).toBe(true);
+    expect((cells[0] as { code: string }).code).toBe("#SHAPE!");
   });
 });
 
