@@ -152,11 +152,11 @@ export { TornadoComponent } from "./TornadoNode";
 export { BuildCubeComponent, NestJoinComponent, CubeColumnsComponent, CubeRollupComponent } from "./CubeNodes";
 
 // ─── External-data connections (Web Source, CSV folder, Parquet folder) ─────────
-export { WebSourceComponent, LocalFileComponent, ImportHtmlComponent, ImportXmlComponent, DataFeedComponent, GeocodeComponent, WeatherComponent, HolidaysComponent, FxComponent, VaultFolderComponent } from "./ConnectionNodes";
+export { WebSourceComponent, LocalFileComponent, ImportHtmlComponent, ImportXmlComponent, DataFeedComponent, GeocodeComponent, WeatherComponent, HolidaysComponent, FxComponent, VaultFolderComponent, TaskNotesComponent } from "./ConnectionNodes";
 export { QrCodeComponent } from "./QrNode";
 
 // ─── File sinks (Write File — CSV/JSON, Write to Obsidian) ────────────────────────
-export { WriteFileComponent, WriteObsidianComponent } from "./WriteNodes";
+export { WriteFileComponent, WriteObsidianComponent, WriteTasksComponent } from "./WriteNodes";
 
 // ─── Import from Obsidian Vault (read a .md into a read-only Note) ────────────────
 export { ImportObsidianComponent } from "./ImportObsidianNode";

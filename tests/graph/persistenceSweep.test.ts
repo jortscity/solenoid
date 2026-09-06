@@ -147,6 +147,8 @@ describe("everyFieldClassified — every own field is persisted or deliberately 
 
   /** name → why this field must NOT persist. Grouped by mechanism. */
   const DELIBERATELY_TRANSIENT: Record<string, string> = {
+    resolved: "Write Tasks' Preview resolutions; re-derived by the next Preview, meaningless across loads",
+    planRows: "Write Tasks' plan, derived from the cached rows on every compute",
     // ── derived from persisted fields at construction / _rebuild ──
     ast: "compiled from expr", evaluator: "compiled from expr", varNames: "extracted from expr",
     captured: "derived from expr − params", compiled: "compiled from expr/params",

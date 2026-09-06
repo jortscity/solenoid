@@ -27,6 +27,9 @@ export interface Settings {
   obsidianVault: string;
   /** Vault-relative subfolder for written image assets; empty = beside the note. */
   obsidianAssetSubfolder: string;
+  /** The TaskNotes plugin's local HTTP API; empty = http://localhost:8080. The bearer
+   *  token lives in apiKeyStore under "tasknotes", never in the settings file. */
+  taskNotesUrl: string;
 
   /** Minimap corner: "bottom" (default), "top", or "hide"; the socket legend slides
    *  down into the freed corner whenever this isn't "bottom". */
@@ -61,6 +64,7 @@ const DEFAULTS: Settings = {
   alwaysAllowNetwork: false,
   obsidianVault: "",
   obsidianAssetSubfolder: "",
+  taskNotesUrl: "",
   minimapPosition: "bottom",
   hideGridDots: false,
   tablePopupSummary: true,
@@ -192,6 +196,13 @@ export const SETTINGS_SCHEMA: SettingsSection[] = [
         help: "Charts and images are saved here.",
         type: "text",
         placeholder: "assets",
+      },
+      {
+        key: "taskNotesUrl",
+        label: "TaskNotes API",
+        help: "The TaskNotes plugin's HTTP API. Turn it on in the plugin's settings; the token goes on the TaskNotes card.",
+        type: "text",
+        placeholder: "http://localhost:8080",
       },
     ],
   },

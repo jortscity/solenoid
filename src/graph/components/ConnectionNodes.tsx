@@ -1,6 +1,7 @@
 import type React from "react";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import type {
+  TaskNotesNode as TaskNotesNodeType,
   WebSourceNode as WebSourceNodeType,
   LocalFileNode as LocalFileNodeType,
   ImportHtmlNode as ImportHtmlNodeType,
@@ -31,6 +32,10 @@ import { pickGeocodeMatch } from "../geocodeProvider";
 import { NAGER_COUNTRIES, filterHolidays, daysToNextHoliday } from "../holidaysProvider";
 import { FX_CURRENCIES } from "../fxProvider";
 import { frameRowCount } from "../frame";
+import { TASKNOTES_KEY_ID, TASKNOTES_PROVIDER_META, type TaskNotesProvider } from "../taskNotesApi";
+import { dropInputCables } from "./cablePrune";
+import { dropStrandedFrontmatterCables } from "../noteFrontmatterSync";
+import { getActiveView } from "../activeGraph";
 
 function statusText(s: ConnectionState): string {
   switch (s.status) {
@@ -751,6 +756,102 @@ export function VaultFolderComponent({ data, emit }: NodeProps<VaultFolderNodeTy
           </>
         )}
       </div>
+    </NodeShell>
+  );
+}
+
+// ─── TASKNOTES ────────────────────────────────────────────────────────────────────
+// The Obsidian plugin's local HTTP API. Provider select reshapes the sockets (Tasks → a
+// cube; Calendar → From/To + an events frame; Stats → five counts); the bearer token
+// lives in apiKeyStore like the Data Feed keys, the URL in Settings ▸ Obsidian.
+export function TaskNotesComponent({ data, emit }: NodeProps<TaskNotesNodeType>) {
+  useSyncExternalStore(connectionStore.subscribe, connectionStore.version);
+  useSyncExternalStore(apiKeyStore.subscribe, apiKeyStore.version);
+  const [provider, setProvider] = useState<TaskNotesProvider>(data.provider);
+  const [token, setToken] = useState(apiKeyStore.get(TASKNOTES_KEY_ID));
+  const [minutes, setMinutes] = useState(data.refreshMinutes);
+  useEffect(() => { setProvider(data.provider); }, [data.provider]);
+  useAutoRefresh(data.id, minutes);
+
+  async function pickProvider(next: TaskNotesProvider) {
+    if (next === data.provider) return;
+    const departing = data.keysDroppedBySwitch(next);
+    if (departing.inputs.length > 0) await dropInputCables(data.id, departing.inputs);
+    if (departing.outputs.length > 0) await dropStrandedFrontmatterCables(data.id, departing.outputs, []);
+    data.setProvider(next);
+    setProvider(next);
+    await getActiveView()?.rerenderNode(data.id);
+    await processGraph();
+  }
+  function commitToken() {
+    if (token.trim() !== apiKeyStore.get(TASKNOTES_KEY_ID)) {
+      apiKeyStore.set(TASKNOTES_KEY_ID, token);
+      void refreshConnection(data.id);
+    }
+  }
+
+  const tasks = data.outputs.tasks;
+  const events = data.outputs.events;
+  const s = data.cachedStats;
+  const eventRows = data.cachedEvents ? frameRowCount(data.cachedEvents) : 0;
+  return (
+    <NodeShell node={data} emit={emit} hideOutputSockets>
+      <div className="sol-conn">
+        <LazySelect
+          className="sol-conn__select"
+          value={provider}
+          title="What to read"
+          onChange={(e) => void pickProvider(e.target.value as TaskNotesProvider)}
+        >
+          {(Object.keys(TASKNOTES_PROVIDER_META) as TaskNotesProvider[]).map((k) => (
+            <option key={k} value={k} title={TASKNOTES_PROVIDER_META[k].description}>{TASKNOTES_PROVIDER_META[k].label}</option>
+          ))}
+        </LazySelect>
+      </div>
+      {provider === "calendar" && <InlineInputs node={data} emit={emit} />}
+      <div className="sol-conn">
+        <input
+          className="sol-conn__url"
+          type="password"
+          value={token}
+          placeholder="API token"
+          spellCheck={false}
+          autoComplete="off"
+          onChange={(e) => setToken(e.target.value)}
+          onBlur={commitToken}
+          onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+          onPointerDown={stopDragStart}
+          onMouseDown={(e) => e.stopPropagation()}
+        />
+        <div className="sol-conn__note">TaskNotes plugin, local HTTP API.</div>
+        <ConnectionStatusRow nodeId={data.id} onRefresh={() => void refreshConnection(data.id)} />
+        <RefreshIntervalField minutes={minutes} onCommit={(n) => { data.refreshMinutes = n; setMinutes(n); }} />
+      </div>
+      {tasks && (
+        <MeasuredSocketRow side="output" socketKey="tasks" nodeId={data.id} emit={emit} payload={tasks.socket}>
+          <span className="solenoid-node__io-label">TASKS</span>
+          <span className="solenoid-node__output-value">{data.cachedTasks ? `${data.cachedTasks.length} task${data.cachedTasks.length === 1 ? "" : "s"}` : "—"}</span>
+        </MeasuredSocketRow>
+      )}
+      {events && (
+        <MeasuredSocketRow side="output" socketKey="events" nodeId={data.id} emit={emit} payload={events.socket}>
+          <span className="solenoid-node__io-label">EVENTS</span>
+          <span className="solenoid-node__output-value">{data.cachedEvents ? `${eventRows} event${eventRows === 1 ? "" : "s"}` : "—"}</span>
+        </MeasuredSocketRow>
+      )}
+      {provider === "stats" && (
+        <InlineOutputRows
+          node={data}
+          emit={emit}
+          rows={[
+            { key: "total",     label: "TOTAL",     value: s?.total ?? null },
+            { key: "completed", label: "COMPLETED", value: s?.completed ?? null },
+            { key: "active",    label: "ACTIVE",    value: s?.active ?? null },
+            { key: "overdue",   label: "OVERDUE",   value: s?.overdue ?? null },
+            { key: "archived",  label: "ARCHIVED",  value: s?.archived ?? null },
+          ]}
+        />
+      )}
     </NodeShell>
   );
 }

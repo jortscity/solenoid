@@ -120,6 +120,7 @@ describe("dateAmbiguitySurfaces — a value-carrying text→date conversion keep
     "weatherProvider.ts": "Open-Meteo daily.time is machine ISO YYYY-MM-DD — never ambiguous; a bad row is a blank date cell",
     "holidaysProvider.ts": "Nager.Date PublicHolidays.date is machine ISO YYYY-MM-DD — never ambiguous; an undated row is dropped",
     "fxProvider.ts": "Frankfurter's date is machine ISO YYYY-MM-DD — never ambiguous; a missing date is NaN",
+    "taskNotesApi.ts": "TaskNotes' API dates are machine ISO YYYY-MM-DD / ISO datetimes — never ambiguous; a malformed one is a blank cell (a cube column has no error channel)",
   };
 
   it("no new file flattens #AMBIGUOUS! away without a sanction", () => {
