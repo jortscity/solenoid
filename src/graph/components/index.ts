@@ -154,6 +154,7 @@ export { BuildCubeComponent, NestJoinComponent, CubeColumnsComponent, CubeRollup
 
 // ─── External-data connections (Web Source, CSV folder, Parquet folder) ─────────
 export { WebSourceComponent, LocalFileComponent, ImportHtmlComponent, ImportXmlComponent, DataFeedComponent, GeocodeComponent, WeatherComponent, HolidaysComponent, FxComponent } from "./ConnectionNodes";
+export { QrCodeComponent } from "./QrNode";
 
 // ─── File sinks (Write File — CSV/JSON, Write to Obsidian) ────────────────────────
 export { WriteFileComponent, WriteObsidianComponent } from "./WriteNodes";

@@ -2,7 +2,7 @@
 // HYPOTENUSE claim, formula presets, and nodes with no Excel answer at all.
 
 import { HYPOTENUSE_ENTRY } from "./geometry";
-import { ReverseTextNode, SpellNumberNode, TimeZoneConvertNode, WorldClockNode } from "../rete-nodes";
+import { ReverseTextNode, SpellNumberNode, TimeZoneConvertNode, WorldClockNode, QrCodeNode } from "../rete-nodes";
 import { placeFormulas, type Pack, type FormulaPackEntry } from "./packShared";
 
 export const TIMESAVER_NUMERIC: FormulaPackEntry[] = [
@@ -92,6 +92,16 @@ export const TIMESAVERS_PACK: Pack = {
         description: "The current local time in a list of time zones, as a table of place and time for a Report. Name the zones the IANA way, like Europe/London. No Excel equivalent.",
         keywords: "world clock timezone tz local time cities dashboard meeting planner iana",
         create: () => new WorldClockNode(),
+      },
+    },
+    {
+      path: ["Output", "Visuals"],
+      entry: {
+        type: "ts-qr-code",
+        label: "QR Code",
+        description: "A QR code from text, a URL, Wi-Fi credentials, or a contact card. Pick the template and fill it in; the code shows on the card and prints from a Report. No network, no Excel equivalent.",
+        keywords: "qr code barcode scan url wifi password vcard contact link share phone",
+        create: () => new QrCodeNode(),
       },
     },
     {
