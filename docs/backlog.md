@@ -35,21 +35,11 @@ elkjs-vs-rete-auto-arrange peer conflict left with the plugin.
   balancing is the Allocator" as a seed. GATE: nothing starts until the author picks; the first
   pass's Hungarian matching + Erlang staffing sit in `deferrals.md`.
 
-- [ ] **Table popup footer: type-aware stats** — add Range and Stddev (number), Earliest /
-  Latest (date), Checked / Unchecked (logical) beside the existing sum · avg · min · max ·
-  median · count · distinct · empty · errors (`TablePopup.tsx` `FooterStat`). Bases' summary set
-  (`v2.0/24-obsidian-vault.md` § Bases item 3); small, no vault involved.
-
 ## Composites
 
 - [ ] **LATER — Optimize run mode on composites (1.4 A6; author 2026-09-04c: in, not now).** Excel
   Solver's shape as a sixth composite run mode beside Goal Seek; spec + steps in `1.4-plan.md`
   § A6. Gate: the author says go (and settles the constraint forms; integer no).
-- [ ] **Docked FCs inside a drill-in don't recenter** (2026-09-04c, from the E2 audit) —
-  `FlowCompositeOverlay`'s arrange factory passes `repositionDockedTo: () => {}` and the
-  component/keyboard callers hit the MAIN `repositionDocked` slot, so a Format Controller docked
-  in a composite doesn't follow its host on resize / format change / Tidy. Component reflow, not a
-  chrome verb (out of E2's scope). Fix by giving the drill-in a real reposition through the seam.
 
 ## Tables
 
