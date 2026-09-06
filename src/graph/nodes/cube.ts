@@ -4,12 +4,21 @@ import { cubeFromColumns, relateFramesToCube, relateCubeToFrame, cubeColumnFromV
 import { aggregateGroup, type AggOp } from "../frameVerbs";
 import { solError, type SolError } from "../errorValue";
 
+/** An unwired wildcard row's typed cell: exactly one of the two literal maps holds it. */
+function literalCell(node: { literals: Record<string, number>; stringLiterals: Record<string, string> }, key: string): CubeCell {
+  if (key in node.literals) return node.literals[key] as CubeCell;
+  if (key in node.stringLiterals) return node.stringLiterals[key] as CubeCell;
+  return null as CubeCell;
+}
+
 export class BuildCubeNode extends ClassicPreset.Node {
   label: string;
   cachedResult: CubeValue | null = null;
-  // Unwired `any` rows accept a typed numeric scalar as their cell; `name` is a string.
+  // Unwired `any` rows take a typed scalar cell, number or text (autoLiterals); `name`
+  // is a string.
   literals: Record<string, number> = {};
   stringLiterals: Record<string, string> = { name: "" };
+  autoLiterals = true;
   nextInputId = 0;
   width = 200;
   height = 250;
@@ -45,13 +54,14 @@ export class BuildCubeNode extends ClassicPreset.Node {
   removeValueInput(key: string): void {
     this.removeInput(key);
     delete this.literals[key];
+    delete this.stringLiterals[key];
   }
 
   data(inputs: Record<string, unknown[] | undefined>) {
     const cells: CubeCell[] = this.valueInputKeys().map((k) => {
       const wired = inputs[k];
       if (wired && wired.length) return wired[0] as CubeCell;
-      return (k in this.literals ? this.literals[k] : null) as CubeCell;
+      return literalCell(this, k);
     });
     // Read raw, guard, THEN trim: a wired blank name is unknown, not "Items".
     const nameRaw = readInput(inputs.name as string[] | undefined, this.stringLiterals.name ?? "");
@@ -128,6 +138,7 @@ export class CubeColumnsNode extends ClassicPreset.Node {
   cachedResult: CubeValue | null = null;
   literals: Record<string, number> = {};
   stringLiterals: Record<string, string> = { names: "" };
+  autoLiterals = true;
   nextInputId = 0;
   width = 210;
   height = 250;
@@ -162,13 +173,14 @@ export class CubeColumnsNode extends ClassicPreset.Node {
   removeValueInput(key: string): void {
     this.removeInput(key);
     delete this.literals[key];
+    delete this.stringLiterals[key];
   }
 
   data(inputs: Record<string, unknown[] | undefined>) {
     const names = (inputs.names?.[0] as string[] | undefined) ?? [];
     const cols = this.valueInputKeys().map((k, i) => {
       const wired = inputs[k];
-      const value = wired && wired.length ? wired[0] : (k in this.literals ? this.literals[k] : null);
+      const value = wired && wired.length ? wired[0] : literalCell(this, k);
       return { name: (names[i] ?? "").trim() || `Col${i + 1}`, cells: cubeColumnFromValue(value) };
     });
     const maxLen = cols.reduce((m, c) => Math.max(m, c.cells.length), 0);

@@ -438,8 +438,9 @@ export function InlineAutoField({
   );
 }
 
-/** Opted in by the VALUE SELECTORS, whose wildcard rows are value branches. A wildcard
- *  SINK or relay (Display, Cast, Report, Cube) leaves it off and stays wire-only. */
+/** Opted in by the VALUE SELECTORS, whose wildcard rows are value branches, and the cube
+ *  builders, whose rows are cells. A wildcard SINK or relay (Display, Cast, Report) leaves
+ *  it off and stays wire-only. */
 export interface AutoLiteralHost {
   autoLiterals?: boolean;
   stringLiterals?: Record<string, string>;
