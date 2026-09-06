@@ -37,11 +37,10 @@ import { solveStandoffs } from "../standoffSolver";
 import { withLockedGroupsPinned } from "../groupLogic";
 import { measuredBox } from "../nodeSize";
 import { translateEntityBy } from "../groupPush";
-import { computeDockedCanvasPos, dockedRenderedDims } from "../fcDocking";
+import { repositionDockedFor } from "../fcDocking";
 import { forgetNode } from "../nodeStoreRegistry";
 import { rebuildGroupMembership } from "../groupMembership";
 import { restoreSettledPushes } from "../groupPush";
-import { dockedNodeStore } from "../dockedNodeStore";
 import { setDrawnCommit } from "../drawnCables";
 import { LoadOverlay } from "../components/LoadOverlay";
 import { ComputeOverlay } from "../components/ComputeOverlay";
@@ -168,19 +167,10 @@ function FlowCanvasInner() {
       scheduleAutosave();
     });
 
-    // Docked FCs ride their host, driven through the view adapter.
-    const repositionDockedTo = (hostId: string) => {
-      const el = s.handlers.getContainer();
-      if (!el) return;
-      for (const rel of dockedNodeStore.getDockedTo(hostId)) {
-        const dockedNode = s.editor.getNode(rel.id);
-        if (!dockedNode) continue;
-        if ((dockedNode as { selected?: boolean }).selected) continue;
-        const { w, h } = dockedRenderedDims(s.view, rel.id, dockedNode.width, dockedNode.height);
-        const pos = computeDockedCanvasPos(s.view, el, rel.hostNodeId, rel.socketKey, rel.side, w, h);
-        if (pos) void s.view.moveNode(rel.id, pos);
-      }
-    };
+    // Docked FCs ride their host, driven through the view adapter (shared with the
+    // drill-in via repositionDockedFor).
+    const repositionDockedTo = (hostId: string) =>
+      repositionDockedFor(s.editor, s.view, s.handlers.getContainer(), hostId);
     setRepositionDocked(repositionDockedTo);
 
     // Tidy + Cleanup; the auto-arrange plugin resolves view/editor through the

@@ -81,6 +81,16 @@ export function swapArrangeSlots(fns: { autoArrange: (opts?: { groupId?: string 
   };
 }
 
+/** Point the docked-FC reposition at a substitute surface (the composite drill-in) while
+ *  it is open, so a Format Controller docked inside the drill-in follows its host on resize
+ *  / format change / Tidy instead of hitting the MAIN no-op. The returned restorer hands it
+ *  back to the main canvas. */
+export function swapRepositionDockedSlot(fn: (hostId: string) => void): () => void {
+  const prev = _repositionDocked;
+  _repositionDocked = fn;
+  return () => { _repositionDocked = prev; };
+}
+
 /** Point the delete verb (the keyboard-less mobile / tablet delete button) at a substitute
  *  surface (the composite drill-in) while it is open; the returned restorer hands it back.
  *  The Delete KEY is already per-surface through RF's onBeforeDelete — this covers the chrome
