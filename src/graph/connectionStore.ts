@@ -119,6 +119,23 @@ registerNodeForgetAll(() => {
 /** Called by a background fetch once its data lands; debounced to the next tick so
  *  several sources resolving together coalesce into one processGraph. */
 let _recalcQueued = false;
+// In-flight background loads, so a headless run can wait for every fetch/read to land
+// and recompute once (the app never waits — scheduleConnectionRecalc re-runs per node).
+const _inflight = new Set<Promise<unknown>>();
+
+/** Register a background load; resolves/rejects like the original. */
+export function trackInflight<T>(p: Promise<T>): Promise<T> {
+  _inflight.add(p);
+  const done = () => { _inflight.delete(p); };
+  p.then(done, done);
+  return p;
+}
+
+/** Resolves once every in-flight load registered so far has settled (errors included). */
+export async function whenConnectionsSettled(): Promise<void> {
+  while (_inflight.size > 0) await Promise.allSettled([..._inflight]);
+}
+
 export function scheduleConnectionRecalc(): void {
   if (_recalcQueued) return;
   _recalcQueued = true;

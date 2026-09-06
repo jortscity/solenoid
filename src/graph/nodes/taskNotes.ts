@@ -1,6 +1,6 @@
 import { ClassicPreset } from "rete";
 import { dateIn, cubeOut, frameOut, numOut } from "./shared";
-import { connectionStore, scheduleConnectionRecalc, requestNetwork } from "../connectionStore";
+import { connectionStore, scheduleConnectionRecalc, requestNetwork, trackInflight } from "../connectionStore";
 import { settingsStore } from "../settingsStore";
 import { apiKeyStore } from "../apiKeyStore";
 import { fetchText } from "../httpBridge";
@@ -116,7 +116,7 @@ export class TaskNotesNode extends ClassicPreset.Node {
         connectionStore.setState(this.id, { status: "idle" });
       } else if (requestNetwork(this.id)) {
         this._lastKey = key;
-        void this.fetchProvider(from, to).then(() => scheduleConnectionRecalc());
+        void trackInflight(this.fetchProvider(from, to)).then(() => scheduleConnectionRecalc());
       }
     }
     switch (this.provider) {

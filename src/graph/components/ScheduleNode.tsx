@@ -3,35 +3,35 @@ import { SCHEDULE_MODE_OPTIONS } from "../nodes/schedule";
 import { NodeShell, InlineOutputRows, useNodeField, type NodeProps, type OutputRowValue } from "./nodeKit";
 import { InlineInputs } from "./inlineInput";
 import { SegToggle } from "./SegToggle";
-import { FrameDisplay } from "./FrameDisplay";
+import { CubeDisplay } from "./CubeDisplay";
 import { MeasuredSocketRow } from "./NodeSocket";
 import { dateFormatDisplay } from "./valueDisplayFormat";
 import { nodeDisplayName } from "../catalogUtils";
-import { isFrameValue } from "../frame";
+import { isCubeValue } from "../frame";
 
 function ganttSummary(data: ScheduleNodeType): OutputRowValue {
   const g = data.cachedGantt;
   if (typeof g !== "string") return g;
-  const f = data.cachedResult;
-  if (!isFrameValue(f)) return g;
-  const rows = f.columns[0]?.values.length ?? 0;
-  const crit = f.columns.find((c) => c.name === "Critical")?.values.filter((v) => v === true).length ?? 0;
+  const c = data.cachedResult;
+  if (!isCubeValue(c)) return g;
+  const rows = c.columns[0]?.cells.length ?? 0;
+  const crit = c.columns.find((col) => col.name === "Critical")?.cells.filter((v) => v === true).length ?? 0;
   return `${rows} task${rows === 1 ? "" : "s"} · ${crit} critical`;
 }
 
-// Tasks in, three outputs: the schedule frame (hero), Project finish, and the gantt
+// Tasks in, three outputs: the schedule cube (hero), Project finish, and the gantt
 // source — the last two as labeled rows so each keeps its own socket dot.
 export function ScheduleComponent({ data, emit }: NodeProps<ScheduleNodeType>) {
   const [mode, setMode] = useNodeField(data, "mode");
-  const frameOut = data.outputs.frame;
+  const cubeOut = data.outputs.cube;
   return (
     <NodeShell node={data} emit={emit} hideOutputSockets>
       <InlineInputs node={data} emit={emit} />
       <SegToggle value={mode} options={SCHEDULE_MODE_OPTIONS} onChange={setMode} />
-      {frameOut && (
-        <MeasuredSocketRow hero side="output" socketKey="frame" nodeId={data.id} emit={emit} payload={frameOut.socket}>
+      {cubeOut && (
+        <MeasuredSocketRow hero side="output" socketKey="cube" nodeId={data.id} emit={emit} payload={cubeOut.socket}>
           <div style={{ width: "100%" }}>
-            <FrameDisplay frame={data.cachedResult} label={nodeDisplayName(data)} />
+            <CubeDisplay cube={data.cachedResult} label={nodeDisplayName(data)} />
           </div>
         </MeasuredSocketRow>
       )}

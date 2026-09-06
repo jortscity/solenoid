@@ -447,6 +447,33 @@ export function frameFromRecords(records: ReadonlyArray<Record<string, unknown>>
   return { __frame: true, columns };
 }
 
+/** Records → a Cube: columns are the keys in first-appearance order; a scalar column keeps a
+ *  type hint, a list value is a LIST cell (never joined into text), a nested record list a
+ *  nested frame/cube via the same rule. The rows-of-objects shape frontmatter and the vault
+ *  readers share. */
+export function recordsToCube(records: ReadonlyArray<Record<string, unknown>>): CubeValue {
+  const keys: string[] = [];
+  for (const rec of records) for (const k of Object.keys(rec)) if (!keys.includes(k)) keys.push(k);
+  const names = makeHeaders(keys, keys.length);
+  const toCell = (v: unknown): CubeCell => {
+    if (v == null) return null;
+    if (Array.isArray(v)) {
+      const objs = v.filter((x) => x && typeof x === "object" && !Array.isArray(x));
+      if (v.length > 0 && objs.length === v.length) return recordsToCube(v as Record<string, unknown>[]);
+      return v.map(toCell);
+    }
+    if (typeof v === "object") return recordsToCube([v as Record<string, unknown>]);
+    return v as FrameCell;
+  };
+  return cubeFromColumns(keys.map((key, j) => {
+    const cells = records.map((r) => toCell(r[key]));
+    const scalarOnly = cells.every((c) => c == null || (typeof c !== "object"));
+    if (!scalarOnly) return { name: names[j], cells };
+    const inferred = inferColumn(names[j], cells);
+    return { name: names[j], cells, type: inferred.type };
+  }));
+}
+
 /** Build a Frame from JSON array-of-arrays (positional columns). */
 export function frameFromRows(rows: ReadonlyArray<ReadonlyArray<unknown>>, headers?: ReadonlyArray<string>): FrameValue {
   const ncols = rows.reduce((m, r) => Math.max(m, r.length), 0);

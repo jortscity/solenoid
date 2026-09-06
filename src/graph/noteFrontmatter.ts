@@ -16,11 +16,13 @@ export type FrontmatterFieldType =
   | "strlist"
   | "logicallist"
   | "datelist"
-  | "frame";
+  | "frame"
+  | "cube";
 
 // Dates emit as serials, like the rest of Solenoid.
 export type FrontmatterScalar = number | string | boolean | null;
-export type FrontmatterRow = Record<string, FrontmatterScalar>;
+/** A row's value may itself be a list (`after: [A, B]` inside `- {…}`); such rows make a cube. */
+export type FrontmatterRow = Record<string, FrontmatterScalar | FrontmatterScalar[]>;
 export type FrontmatterValue = FrontmatterScalar | FrontmatterScalar[] | FrontmatterRow[];
 
 export interface FrontmatterField {
@@ -81,10 +83,10 @@ function splitFlow(inner: string): string[] {
     } else if (ch === '"' || ch === "'") {
       quote = ch;
       buf += ch;
-    } else if (ch === "{") {
+    } else if (ch === "{" || ch === "[") {
       depth++;
       buf += ch;
-    } else if (ch === "}") {
+    } else if (ch === "}" || ch === "]") {
       depth = Math.max(0, depth - 1);
       buf += ch;
     } else if (ch === "," && depth === 0) {
@@ -111,7 +113,14 @@ function parseInlineObject(raw: string): FrontmatterRow | null {
     if (c < 0) continue;
     const k = part.slice(0, c).trim();
     if (k === "") continue;
-    row[k] = parseScalar(part.slice(c + 1)).value;
+    const v = part.slice(c + 1).trim();
+    // A flow list inside a row (`after: [A, B]`) stays a list — the row then makes a CUBE.
+    if (v.startsWith("[") && v.endsWith("]")) {
+      const inner = v.slice(1, -1);
+      row[k] = inner.trim() === "" ? [] : splitFlow(inner).map((x) => parseScalar(x).value);
+    } else {
+      row[k] = parseScalar(v).value;
+    }
   }
   return row;
 }
@@ -137,9 +146,11 @@ function fieldFromArray(key: string, values: FrontmatterScalar[]): FrontmatterFi
   return { key, value: values, guessed: listType(values) };
 }
 
-/** Rows of inline objects → a `frame` field; the node builds the columns from the keys. */
+/** Rows of inline objects → a `frame` field, or a `cube` when any row value is a list
+ *  (a frame cell is scalar; a list belongs in a cube cell). */
 function fieldFromRows(key: string, rows: FrontmatterRow[]): FrontmatterField {
-  return { key, value: rows, guessed: "frame" };
+  const hasList = rows.some((r) => Object.values(r).some((v) => Array.isArray(v)));
+    return { key, value: rows, guessed: hasList ? "cube" : "frame" };
 }
 
 /** Items (flow or block) → a frame field iff EVERY item is an inline object; else a scalar
