@@ -78,3 +78,11 @@ describe("ImportObsidianNode", () => {
     expect(reloaded.fieldKeys()).toEqual(["a"]); // frontmatter sockets rebuild from the persisted body
   });
 });
+
+describe("ImportObsidianNode refresh cadence (bundle I)", () => {
+  it("refreshMinutes persists through extractInit, defaults to 0, never negative", () => {
+    expect(new ImportObsidianNode().refreshMinutes).toBe(0);
+    expect(extractInit(new ImportObsidianNode({ refreshMinutes: 15 }) as never).refreshMinutes).toBe(15);
+    expect(new ImportObsidianNode({ refreshMinutes: -3 }).refreshMinutes).toBe(0);
+  });
+});

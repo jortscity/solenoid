@@ -87,3 +87,21 @@
   cursor: pointer;
 }
 .sol-import__reload:hover { border-color: var(--note-color, var(--accent)); color: var(--text-bright); }
+.sol-import__every {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+.sol-import__minutes {
+  width: 38px;
+  padding: 2px 4px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text);
+  font-size: 11px;
+  text-align: right;
+}

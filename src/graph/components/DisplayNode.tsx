@@ -14,6 +14,7 @@ import { ChartExpandButton } from "./ChartExpandButton";
 import { ValueExpandButton } from "./ValueExpandButton";
 import { popOutKindFor } from "../valuePopup";
 import { MermaidView } from "./MermaidView";
+import { DiagramChip } from "./DiagramChip";
 import { SvgFigure } from "./SvgFigure";
 import { isFrameValue, isCubeValue } from "../frame";
 import { isChartValue, type ChartValue } from "../chartValue";
@@ -138,7 +139,11 @@ export function DisplayComponent({ data, emit }: NodeProps<DisplayNodeType>) {
           </div>
         )
       ) : isMermaid ? (
-        <MermaidView source={v.source} />
+        !full ? (
+          <div className="solenoid-node__display-value" style={{ display: "flex", justifyContent: "flex-end" }}><DiagramChip value={v} /></div>
+        ) : (
+          <MermaidView source={v.source} />
+        )
       ) : isSvg ? (
         <SvgFigure value={v} height={full ? 200 : 120} />
       ) : isLambda ? (

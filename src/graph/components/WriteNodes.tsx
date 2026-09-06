@@ -1,6 +1,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import type { WriteFileNode as WriteFileNodeType, WriteObsidianNode as WriteObsidianNodeType, WriteTasksNode as WriteTasksNodeType, WriteFormat } from "../rete-nodes";
-import { isDesktop, listVaultFolders } from "../fileBridge";
+import { isDesktop, listVaultFolders, openExternal } from "../fileBridge";
+import { obsidianOpenUrl } from "../obsidianLinks";
 import { settingsStore } from "../settingsStore";
 import { documentStore } from "../documentStore";
 import { isDocumentValue } from "../documentValue";
@@ -141,7 +142,7 @@ export function WriteFileComponent({ data, emit }: NodeProps<WriteFileNodeType>)
 // Same arm/disarm discipline as the file sinks: Run is the only thing that writes.
 
 type WriteObsidianData = WriteObsidianNodeType & {
-  fileName: string; subfolder: string; mode: ObsidianWriteMode; enabled: boolean; status: string; statusMessage: string;
+  fileName: string; subfolder: string; mode: ObsidianWriteMode; enabled: boolean; status: string; statusMessage: string; lastWritten: string;
   run(): Promise<void>;
   templateContext(docName: string): NameTemplateContext;
 };
@@ -262,6 +263,17 @@ export function WriteObsidianComponent({ data, emit }: NodeProps<WriteObsidianNo
           <div className={`sol-conn__status-text${status === "error" ? " sol-conn__status-text--error" : ""}`} title={message}>
             {message}
           </div>
+        )}
+        {d.lastWritten && obsidianOpenUrl(vault, d.lastWritten) && (
+          <button
+            type="button"
+            className="sol-write__run"
+            title="Open the note in Obsidian"
+            onClick={(e) => { e.stopPropagation(); void openExternal(obsidianOpenUrl(vault, d.lastWritten)!); }}
+            {...stopPtr}
+          >
+            Open in Obsidian
+          </button>
         )}
         {preview && <div className="sol-conn__note">{preview}</div>}
       </div>

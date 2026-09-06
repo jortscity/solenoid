@@ -52,6 +52,8 @@ export class WriteObsidianNode extends ClassicPreset.Node {
   cachedDoc: DocumentValue | SolError | null = null;
   status: ObsidianWriteStatus = "idle";
   statusMessage = "";
+  /** The vault-relative path of the last note this card wrote (transient; Open in Obsidian). */
+  lastWritten = "";
   width = 262; height = 250;
 
   constructor(init?: { label?: string; fileName?: string; subfolder?: string; mode?: ObsidianWriteMode }) {
@@ -142,6 +144,7 @@ export class WriteObsidianNode extends ClassicPreset.Node {
         blockName: this.label,
       });
       this.status = "ok";
+      this.lastWritten = res.file;
       this.statusMessage = res.assets > 0
         ? `Wrote ${res.file} + ${res.assets} asset${res.assets === 1 ? "" : "s"}`
         : `Wrote ${res.file}`;
@@ -159,10 +162,12 @@ export class WriteObsidianNode extends ClassicPreset.Node {
 export class ImportObsidianNode extends NoteNode {
   /** Vault-relative path of the source `.md` file ("" until one is picked). */
   fileName: string;
+  /** Minutes between automatic reloads from the vault, 0 = off — the component runs the timer. */
+  refreshMinutes: number;
 
   constructor(init?: {
     label?: string; body?: string; color?: string; width?: number; height?: number;
-    collapsed?: boolean; fieldTypes?: Record<string, FrontmatterFieldType>; fileName?: string;
+    collapsed?: boolean; fieldTypes?: Record<string, FrontmatterFieldType>; fileName?: string; refreshMinutes?: number;
   }) {
     super({
       label: init?.label ?? "Import Obsidian Note",
@@ -174,5 +179,6 @@ export class ImportObsidianNode extends NoteNode {
       fieldTypes: init?.fieldTypes,
     });
     this.fileName = init?.fileName ?? "";
+    this.refreshMinutes = Math.max(0, Math.round(init?.refreshMinutes ?? 0));
   }
 }
