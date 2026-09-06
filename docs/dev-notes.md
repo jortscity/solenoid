@@ -20,7 +20,12 @@ EXTENSION (`.md/.json/.csv` only), the vault root is an app-wide setting so grap
 the Import node is a NoteNode not a connection node, ISO datetimes in frontmatter land as strings.
 `deferrals.md`'s Obsidian follow-ups now point at the bundle. The author has no strong opinion on its calls, so the bundle's § Recommendations are the
 build defaults (per-node vault, typing mdbase → `.obsidian/types.json` → guesser, YAML patch
-for properties + the API for tasks, feed before H6). Follow-up ask ("what about TaskNotes itself?") grew item F
+for properties + the API for tasks, feed before H6). Follow-ups on the author's "do everything":
+**H6 Schedule** is specced to the row in `1.4-plan.md` (Kahn order, forward/backward pass on
+serials, an eager `FrameValue → FrameValue` verb like `decisionMatrix` — no `FrameOp`, so
+`oneVerbCorpus` does not apply; still Track-H-gated), and **Import Obsidian Note stays a
+NoteNode** (bundle item I) — it borrows `refreshMinutes` + the watcher hook instead of becoming
+a connection node, because its value is the per-key sockets + document output a frame can't carry. Follow-up ask ("what about TaskNotes itself?") grew item F
 into six sub-items — the ranking is by what Bases formulas cannot do (dependency traversal,
 Monte Carlo, pivots), read via the API so field mapping stays the plugin's job.
 

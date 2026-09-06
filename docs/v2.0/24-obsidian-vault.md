@@ -167,10 +167,11 @@ path>&file=<vault-relative path, URL-encoded, no .md>` through `openExternal` (n
 capability; Windows backslashes normalised to `/` first). A `solenoid://` deep link back
 (`tauri-plugin-deep-link` + single-instance) is HOLD until a caller exists.
 
-**E. Watch → refresh.** The Stage-0 watcher (`21-collaboration.md`) gets a second client: a
+**E. Watch → refresh.** The Stage-0 watcher (`21-collaboration.md`) gets two more clients: a
 change under a Vault Folder's `folder` bumps that node's connection token
-(`refreshConnection`), debounced a second — an edit in Obsidian recomputes the graph. Until it
-lands, `refreshMinutes` is the stopgap. Closes `../deferrals.md`'s "auto-reload" item.
+(`refreshConnection`), and a change to an Import Note's file calls its `reload()` (item I),
+both debounced a second — an edit in Obsidian recomputes the graph. Until it lands,
+`refreshMinutes` is the stopgap on both. Closes `../deferrals.md`'s "auto-reload" item.
 
 **F. TaskNotes** (its own slice; the data Solenoid is already good at lives here: estimates,
 time entries, dependencies, due dates, recurrence). Read through the **HTTP API**, not the
@@ -187,8 +188,10 @@ source`, window from two date inputs), **Stats** (`/api/stats` as scalars). Pure
 `taskNotesApi.ts` (paging + row mapping over a fetch stub; one fixture per endpoint). What the
 frames unlock, ranked by what Bases cannot do:
 
-- **F1 Schedule from dependencies.** Tasks → H6 Schedule (Task · Duration from `timeEstimate`
-  · Predecessors · project Start · Holidays): Start · Finish · Float · Critical; then `PUT`
+- **F1 Schedule from dependencies.** Tasks → H6 Schedule (`../1.4-plan.md` § H6, now specced
+  to the row: Task · Duration · Predecessors + Start / Working days / Holidays → Start · Finish ·
+  Float · Critical + Project finish). Duration = `timeEstimate` ÷ an hours-per-day literal (a
+  Math node, or H6's own `hoursPerDay` if the author wants it on the card); then `PUT`
   `scheduled` back (F6). Bases formulas are per-row — a traversal is impossible there. Gate:
   the Track H pick; the feed ships without it.
 - **F2 Capacity and deadline probability.** GROUPBY due-week of `timeEstimate` minus calendar
@@ -222,6 +225,17 @@ task --where <CEL>` and read JSON — their engine does CEL, links and lifecycle
 **HOLD:** the binary is beta, its JSON output shape is undocumented, `tauri-plugin-shell` isn't
 in the app, and Solenoid's Filter/Sort already cover the `where` on A's frame. Revisit at
 mdbase 1.0.
+
+**I. Import Obsidian Note keeps its class; it borrows the refresh.** Considered making it a
+connection node so it gets `refreshMinutes` and the watcher for free — rejected: its value IS
+the per-key typed sockets + the `document` output + the rendered body, and it extends
+`NoteNode` for that machinery; a connection node emits one `frame`. What it gains instead:
+(1) `refreshMinutes` as an init field, the component running the same `setInterval` →
+`reload()` that `ConnectionNodes.tsx` runs for the sources; (2) registration as the watcher's
+second client class in E (path → `reload()`, which already re-syncs sockets and prunes
+stranded cables through `dropStrandedFrontmatterCables`); (3) a per-node `vault` like A's, so
+an imported note travels with the graph. Nothing else moves; `obsidian.test.ts` pins the
+disarmed-load rule for the writer, not this.
 
 **Not doing.** `.canvas` export (`canvas-bases` already materializes Bases views; a Solenoid
 graph is computation, not a whiteboard). Writing `.base` view files (format in motion; a
@@ -266,7 +280,7 @@ The fs allowlist change (`.yaml`/`.yml` read) is a one-line capability edit, doc
 
 ## Sequencing (dependency order)
 
-A → B → D → C → F (feed + F4/F3/F5 + F6) → E; F1 when H6 lands; G and H on hold. A alone is a
+A → B → D → C → F (feed + F4/F3/F5 + F6) → I → E; F1 when H6 lands; G and H on hold. A alone is a
 product ("your vault as a table"). A + B is the loop ("compute in Solenoid, see it in Bases").
 F is independent of B and C and could go first if the author's own use is task-shaped.
 
@@ -286,6 +300,8 @@ F is independent of B and C and could go first if the author's own use is task-s
    the `predecessors` column is emitted from day one so nothing changes shape later.
 5. **Body inclusion is off by default** and previews stay small; `includeBody` is the switch,
    not a second node.
+6. **Import Note stays a Note** (item I) and borrows the refresh timer + watcher hook rather
+   than becoming a connection node.
 
 ## Risks
 
