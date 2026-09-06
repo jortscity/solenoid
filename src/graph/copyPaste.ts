@@ -93,6 +93,7 @@ export const INIT_FIELD_ORDER = [
   "qrTemplate",
   "vault", "folder", "glob", "nameFormat", "includeBody", "addMissing",
   "cubeText",
+  "stamp",
 ] as const;
 
 // Object-valued extras, appended after INIT_FIELD_ORDER in this fixed order.

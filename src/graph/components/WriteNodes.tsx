@@ -142,7 +142,7 @@ export function WriteFileComponent({ data, emit }: NodeProps<WriteFileNodeType>)
 // Same arm/disarm discipline as the file sinks: Run is the only thing that writes.
 
 type WriteObsidianData = WriteObsidianNodeType & {
-  fileName: string; subfolder: string; mode: ObsidianWriteMode; enabled: boolean; status: string; statusMessage: string; lastWritten: string;
+  fileName: string; subfolder: string; mode: ObsidianWriteMode; stamp: boolean; enabled: boolean; status: string; statusMessage: string; lastWritten: string;
   run(): Promise<void>;
   templateContext(docName: string): NameTemplateContext;
 };
@@ -154,6 +154,7 @@ export function WriteObsidianComponent({ data, emit }: NodeProps<WriteObsidianNo
   const [name, setName] = useState(d.fileName);
   const [subfolder, setSubfolder] = useState(d.subfolder);
   const [mode, setMode] = useState<ObsidianWriteMode>(d.mode);
+  const [stamp, setStamp] = useState(d.stamp);
   const [armed, setArmed] = useState(d.enabled);
   const [status, setStatus] = useState(d.status);
   const [message, setMessage] = useState(d.statusMessage);
@@ -181,6 +182,7 @@ export function WriteObsidianComponent({ data, emit }: NodeProps<WriteObsidianNo
   function pickSubfolder(v: string) { d.subfolder = v; setSubfolder(v); }
   function pickMode(v: ObsidianWriteMode) { d.mode = v; setMode(v); }
   function toggleArmed() { d.enabled = !d.enabled; setArmed(d.enabled); }
+  function toggleStamp() { d.stamp = !d.stamp; setStamp(d.stamp); }
 
   async function run() {
     setStatus("writing");
@@ -219,6 +221,10 @@ export function WriteObsidianComponent({ data, emit }: NodeProps<WriteObsidianNo
         />
         {rendered && <div className="sol-conn__note" title="What the name renders to now">{rendered}</div>}
         <SegToggle value={mode} options={OBSIDIAN_WRITE_MODE_OPTIONS} onChange={pickMode} />
+        <label className="sol-write__armed" title="Add a solenoid: link on the note + a Solenoid/<graph> stub note" {...stopPtr}>
+          <input type="checkbox" checked={stamp} onChange={toggleStamp} />
+          Link to graph
+        </label>
         <div style={{ display: "flex", gap: 4 }}>
           <select
             className="sol-conn__select"

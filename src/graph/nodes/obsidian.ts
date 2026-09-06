@@ -1,5 +1,6 @@
 import { ClassicPreset } from "rete";
 import { documentIn, dateIn } from "./shared";
+import { formatDateSerial } from "./dateSerial";
 import { renderNameTemplate, hasTemplateTokens, type NameTemplateContext } from "../nameTemplate";
 import { parseDailyNotesConfig, type DailyNotesConfig } from "../dailyNotesConfig";
 import type { ObsidianWriteMode } from "../obsidianWrite";
@@ -45,6 +46,9 @@ export class WriteObsidianNode extends ClassicPreset.Node {
   subfolder: string;
   /** overwrite | append | block (a managed marker block the writer owns). */
   mode: ObsidianWriteMode;
+  /** Link each written note back to a `Solenoid/<doc>` stub note (bundle D) — on for
+   *  whole-document writes; the user's records (B / F6) leave it off. */
+  stamp: boolean;
   /** The date the last data() saw on the `date` input (null = unwired / blank). */
   private wiredDate: number | null = null;
   /** Never persisted (see sink.ts) — always false on a fresh construction. */
@@ -56,12 +60,13 @@ export class WriteObsidianNode extends ClassicPreset.Node {
   lastWritten = "";
   width = 262; height = 250;
 
-  constructor(init?: { label?: string; fileName?: string; subfolder?: string; mode?: ObsidianWriteMode }) {
+  constructor(init?: { label?: string; fileName?: string; subfolder?: string; mode?: ObsidianWriteMode; stamp?: boolean }) {
     super("WriteObsidian");
     this.label = init?.label ?? "Write to Obsidian";
     this.fileName = init?.fileName ?? "";
     this.subfolder = init?.subfolder ?? "";
     this.mode = init?.mode === "append" || init?.mode === "block" ? init.mode : "overwrite";
+    this.stamp = init?.stamp !== false;
     this.addInput("in", documentIn("Document"));
     this.addInput("date", dateIn("Date"));
   }
@@ -148,6 +153,26 @@ export class WriteObsidianNode extends ClassicPreset.Node {
       this.statusMessage = res.assets > 0
         ? `Wrote ${res.file} + ${res.assets} asset${res.assets === 1 ? "" : "s"}`
         : `Wrote ${res.file}`;
+      // D: link the note back to a Solenoid/<doc> stub note (best effort — the write is done).
+      if (this.stamp) {
+        try {
+          const docName = documentStore.currentName();
+          const d = new Date();
+          const now = formatDateSerial(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getMinutes(), d.getSeconds()) / 86400000 + 25569, "YYYY-MM-DDTHH:mm:ss");
+          const { patchFrontmatter } = await import("../frontmatterPatch");
+          const { readVaultFile, writeTextFilePath, joinPath, ensureDir } = await import("../fileBridge");
+          const { stubLink, stubRelPath, mergeStub } = await import("../graphStub");
+          // 1. the solenoid: backlink on the note itself.
+          const noteText = await readVaultFile(vault, res.file);
+          const patched = patchFrontmatter(noteText, { solenoid: stubLink(docName, this.label) });
+          await writeTextFilePath(await joinPath(vault, ...res.file.split("/")), patched.text);
+          // 2. create / refresh the stub note.
+          let existing: string | null = null;
+          try { existing = await readVaultFile(vault, stubRelPath(docName)); } catch { existing = null; }
+          await ensureDir(await joinPath(vault, "Solenoid"));
+          await writeTextFilePath(await joinPath(vault, ...stubRelPath(docName).split("/")), mergeStub(existing, docName, this.label, res.file, now));
+        } catch { /* stamping never fails the write */ }
+      }
     } catch (e) {
       this.status = "error";
       this.statusMessage = e instanceof Error ? e.message : String(e);
