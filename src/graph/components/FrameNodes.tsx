@@ -30,6 +30,7 @@ import type {
   DropBlankRowsNode as DropBlankRowsNodeType,
   DecisionMatrixNode as DecisionMatrixNodeType,
   DecisionSensitivityNode as DecisionSensitivityNodeType,
+  SettleNode as SettleNodeType,
   AllocatorNode as AllocatorNodeType,
   ReconcileNode as ReconcileNodeType,
   XLookupNode as XLookupNodeType,
@@ -74,6 +75,7 @@ import { InlineInputs, InlineTextField, useConnectedInputs } from "./inlineInput
 import { CollapsedInputPill } from "./CollapsedInputPill";
 import { ExtensibleInputs } from "./ExtensibleInputs";
 import { FrameDisplay } from "./FrameDisplay";
+import { FrameChip } from "./FrameChip";
 import { FormulaField } from "./FormulaField";
 import { formulaPopup } from "../formulaPopupStore";
 import { ResultDisplay } from "./ResultDisplay";
@@ -747,6 +749,41 @@ export function AllocatorComponent({ data, emit }: NodeProps<AllocatorNodeType>)
       <ArgSelect value={mode} onChange={setMode} options={ALLOCATE_MODE_OPTIONS} />
       <InlineInputs node={data} emit={emit} cableOnlyKeys={cableOnly} />
       <FrameOrCubeDisplay value={data.cachedResult} label={nodeDisplayName(data)} />
+    </NodeShell>
+  );
+}
+
+// ─── GROUP COST SETTLE ───────────────────────────────────────────────────────
+// Two frame outputs hand-placed (the Reconcile / Split Frame pattern): the transfers hero
+// and the per-person net table under it.
+const SETTLE_SPLIT_OPTIONS: { value: "equal" | "weighted"; label: string; title: string }[] = [
+  { value: "equal", label: "Equal split", title: "Everyone owes the same share" },
+  { value: "weighted", label: "By Share", title: "Each person owes in proportion to their Share column (blank = 1)" },
+];
+
+export function SettleComponent({ data, emit }: NodeProps<SettleNodeType>) {
+  const [split, setSplit] = useNodeField(data, "split");
+  const transfersOut = data.outputs.transfers;
+  const netOut = data.outputs.net;
+  return (
+    <NodeShell node={data} emit={emit} hideOutputSockets>
+      <InlineInputs node={data} emit={emit} />
+      <SegToggle value={split} options={SETTLE_SPLIT_OPTIONS} onChange={setSplit} />
+      {transfersOut && (
+        <MeasuredSocketRow hero side="output" socketKey="transfers" nodeId={data.id} emit={emit} payload={transfersOut.socket}>
+          <div style={{ width: "100%" }}>
+            <FrameDisplay frame={data.cachedResult} label={`${nodeDisplayName(data)}: transfers`} />
+          </div>
+        </MeasuredSocketRow>
+      )}
+      {netOut && (
+        <MeasuredSocketRow side="output" socketKey="net" nodeId={data.id} emit={emit} payload={netOut.socket}>
+          <span className="solenoid-node__io-label">NET</span>
+          <span className="solenoid-node__output-value" style={{ display: "flex", justifyContent: "flex-end" }}>
+            {isFrameValue(data.cachedNet) ? <FrameChip value={data.cachedNet} label={`${nodeDisplayName(data)}: net`} size="sm" /> : "—"}
+          </span>
+        </MeasuredSocketRow>
+      )}
     </NodeShell>
   );
 }

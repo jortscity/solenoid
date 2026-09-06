@@ -1,0 +1,86 @@
+{
+  "v": 2,
+  "order": 519,
+  "label": "Trip split",
+  "group": "Worked examples",
+  "nodes": [
+    {
+      "id": "note",
+      "type": "NoteNode",
+      "x": 79,
+      "y": -193,
+      "init": {
+        "label": "Trip split",
+        "body": "# Who pays whom\\nFour friends, one trip, uneven receipts. **Group Cost Settle** nets everyone against their fair share and pays it back in the fewest transfers, exact to the cent.\\n\\nSwitch to **By Share** and the couple (Share 2) owes twice the single travellers. Change a Paid figure and the transfers re-route.",
+        "color": "violet",
+        "width": 380,
+        "height": 230
+      }
+    },
+    {
+      "id": "people",
+      "type": "FrameInputNode",
+      "x": -16,
+      "y": 139,
+      "init": {
+        "label": "Receipts",
+        "frameText": "[{\"name\": \"Person\", \"type\": \"string\", \"values\": [\"Ada\", \"Bo\", \"Cy\", \"Di\"]}, {\"name\": \"Paid\", \"type\": \"number\", \"unit\": \"usd\", \"values\": [300, 100, 40, 0]}, {\"name\": \"Share\", \"type\": \"number\", \"values\": [2, 1, 1, 1]}]"
+      }
+    },
+    {
+      "id": "settle",
+      "type": "SettleNode",
+      "x": 309,
+      "y": 133,
+      "init": {
+        "label": "Group Cost Settle",
+        "split": "equal"
+      }
+    },
+    {
+      "id": "netDisplay",
+      "type": "DisplayNode",
+      "x": 647,
+      "y": -69,
+      "init": {
+        "label": "Net positions"
+      },
+      "size": {
+        "w": 380,
+        "h": 220
+      }
+    },
+    {
+      "id": "grp",
+      "type": "GroupNode",
+      "x": -40,
+      "y": 75,
+      "init": {
+        "label": "The receipts",
+        "members": [
+          "people",
+          "settle"
+        ],
+        "color": "amber",
+        "collapsed": false,
+        "width": 617,
+        "height": 319
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "people",
+      "sourceOutput": "frame",
+      "target": "settle",
+      "targetInput": "people"
+    },
+    {
+      "source": "settle",
+      "sourceOutput": "net",
+      "target": "netDisplay",
+      "targetInput": "in"
+    }
+  ],
+  "standoffs": []
+}

@@ -35,6 +35,7 @@ import {
 import { pairIdsFromKeys } from "./logic";
 import type { PivotSpec, FilterCondConfig } from "../frameVerbs";
 import type { AllocateMode } from "./allocateOps";
+import { settleGroup } from "./settleOps";
 import { describeFrame, correlationMatrix, WINDOW_FN_NEEDS_COLUMN, WINDOW_FN_NEEDS_N, type CorrMethod, type WindowFn } from "../frameVerbs";
 export type { WindowFn } from "../frameVerbs";
 export type { CorrMethod } from "../frameVerbs";
@@ -1619,14 +1620,14 @@ export class DecisionSensitivityNode extends ClassicPreset.Node {
 // `mode` is a parameter of the one verb (not an op family), picked with ArgSelect. The
 // table names each mode once (declareOnce): the card select reads it.
 export const ALLOCATE_MODE_META = {
-  budget:          { label: "Fit budget",       description: "Spend a fixed budget across the categories in proportion to their weights, held inside each price range." },
+  budget:          { label: "Fit budget",       description: "Spend a fixed budget across the categories in proportion to their weights, held inside each range." },
   minTarget:       { label: "Min for target",   description: "The least spend that reaches a weighted-value target, buying the most-valued categories first." },
   minProportional: { label: "Min proportional", description: "The least spend that keeps each category in proportion to its weight while covering its floor." },
 } satisfies Record<AllocateMode, { label: string; description: string }>;
 
 export class AllocatorNode extends ClassicPreset.Node {
   static socketDocs: Record<string, string> = {
-    categories: "Rows are categories. A min and a max number column set each price range, the first text column names them, and a Weight (or Value) column says how much you value each. With no such column every category weighs the same.",
+    categories: "Rows are categories. A min and a max number column set each range (a price, hours, anything you spread), the first text column names them, and a Weight (or Value) column says how much you value each. With no such column every category weighs the same.",
     amount: "The budget to spend (Fit budget) or the value target to reach (Min for target). Ignored by Min proportional.",
   };
 
@@ -1667,6 +1668,96 @@ export class AllocatorNode extends ClassicPreset.Node {
     this.cachedResult = runVerb(() => allocateFrame(f, this.mode, amount));
     return { frame: this.cachedResult };
   }
+}
+
+// ─── GROUP COST SETTLE (1.4 H3) ──────────────────────────────────────────────
+// People paid uneven amounts; the minimum set of transfers that squares everyone up.
+// `split` is a parameter of the one verb (equal | weighted by a Share column).
+export type SettleSplit = "equal" | "weighted";
+
+export class SettleNode extends ClassicPreset.Node {
+  static socketDocs: Record<string, string> = {
+    people: "Rows are people: the first text column names them, a Paid number column says what each paid, and an optional Share column weighs what each owes, where 1 is an equal share and blank counts as 1.",
+    transfers: "Who pays whom, in the fewest transfers: From · To · Amount. Amounts carry the Paid column's currency.",
+    net: "Each person with their fair share and net position: positive is owed, negative owes.",
+  };
+
+  label: string;
+  split: SettleSplit;
+  cachedResult: FrameValue | SolError | null = null;
+  cachedNet: FrameValue | SolError | null = null;
+  width = 240; height = 220;
+
+  static frameHints: Record<string, FrameHint> = {
+    people: { columns: [
+      { name: "Person", type: "string", cells: ["Ada", "Bo", "Cy"] },
+      { name: "Paid", type: "number", cells: [300, 100, 0] },
+      { name: "Share", type: "number", cells: [1, 1, 2] },
+    ] },
+  };
+
+  constructor(init?: { label?: string; split?: SettleSplit }) {
+    super("Settle");
+    this.label = init?.label ?? "Group Cost Settle";
+    this.split = init?.split === "weighted" ? "weighted" : "equal";
+    this.addInput("people", frameIn("People"));
+    this.addOutput("transfers", frameOut("Transfers"));
+    this.addOutput("net", frameOut("Net"));
+  }
+
+  frameShape(outKey: string, ctx: FrameShapeContext): Shape | null {
+    const input = ctx.inputShape("people");
+    if (!input) return null;
+    if (outKey === "transfers") return { columns: [{ name: "From", type: "string" }, { name: "To", type: "string" }, { name: "Amount", type: "number" }] };
+    const name = input.columns.find((c) => c.type === "string")?.name ?? "Person";
+    return { columns: [{ name, type: "string" }, { name: "Paid", type: "number" }, { name: "Share", type: "number" }, { name: "Net", type: "number" }] };
+  }
+
+  data(inputs: { people?: (FrameValue | null)[] }) {
+    const f = inputs.people?.[0] ?? null;
+    if (!f) { this.cachedResult = null; this.cachedNet = null; return { transfers: null, net: null }; }
+    const r = runVerb(() => settleFrame(f, this.split));
+    if (isSolError(r)) { this.cachedResult = r; this.cachedNet = r; return { transfers: r, net: r }; }
+    this.cachedResult = r.transfers; this.cachedNet = r.net;
+    return { transfers: r.transfers, net: r.net };
+  }
+}
+
+/** The frame half of Group Cost Settle: read the people rows, run settleGroup, shape the
+ *  two frames. Paid's unit and format ride onto Amount / Paid / Net (unit-honest). */
+export function settleFrame(f: FrameValue, split: SettleSplit): { transfers: FrameValue; net: FrameValue } {
+  const byName = (...names: string[]) => { const set = new Set(names); return f.columns.find((c) => set.has(c.name.trim().toLowerCase())); };
+  const nameCol = f.columns.find((c) => c.type === "string");
+  const nums = f.columns.filter((c) => c.type === "number");
+  const shareCol = byName("share", "weight", "shares");
+  const paidCol = byName("paid", "amount", "spent") ?? nums.find((c) => c !== shareCol);
+  if (!paidCol) throw solError("#VALUE!", "Group Cost Settle needs a Paid number column");
+  const rows = frameRowCount(f);
+  const people = Array.from({ length: rows }, (_, i) => {
+    const paid = paidCol.values[i];
+    if (isSolError(paid)) throw paid;
+    const share = shareCol ? shareCol.values[i] : null;
+    return {
+      name: String(nameCol?.values[i] ?? `Person ${i + 1}`),
+      paid: typeof paid === "number" && Number.isFinite(paid) ? paid : 0,
+      share: typeof share === "number" && Number.isFinite(share) ? share : null,
+    };
+  });
+  const r = settleGroup(people, { weighted: split === "weighted" && !!shareCol });
+  const money = { ...(paidCol.unit ? { unit: paidCol.unit } : {}), ...(paidCol.format ? { format: paidCol.format } : {}) };
+  return {
+    transfers: { __frame: true, columns: [
+      { name: "From", type: "string", values: r.transfers.map((t) => t.from) },
+      { name: "To", type: "string", values: r.transfers.map((t) => t.to) },
+      { name: "Amount", type: "number", values: r.transfers.map((t) => t.amount), ...money },
+    ] },
+    net: { __frame: true, columns: [
+      { name: nameCol?.name ?? "Person", type: "string", values: people.map((p) => p.name) },
+      { name: "Paid", type: "number", values: people.map((p) => p.paid), ...money },
+      { name: "Share", type: "number", values: r.shares, ...money },
+      { name: "Net", type: "number", values: r.nets, ...money },
+    ] },
+  };
 }
 
 // ─── RECONCILE ───────────────────────────────────────────────────────────────
