@@ -11,7 +11,8 @@ import { NodeSocket } from "./NodeSocket";
 import { FieldRow } from "./NoteNode";
 import { useDismissOnOutside } from "./useDismissOnOutside";
 import { useEditableLabel } from "./inlineInput";
-import { isDesktop, listVaultMarkdownFiles, readVaultFile } from "../fileBridge";
+import { isDesktop, listVaultMarkdownFiles, readVaultFile, openExternal } from "../fileBridge";
+import { obsidianOpenUrl } from "../obsidianLinks";
 import { getActiveView, getActiveEditor } from "../activeGraph";
 import { processGraph } from "../process";
 import { bumpConnectionVersion } from "../graphSignals";
@@ -185,6 +186,21 @@ export function ImportObsidianComponent({ data, emit }: NodeProps<ImportObsidian
             <path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6a2 2 0 0 1-1.94 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2" />
           </svg>
         </button>
+        {data.fileName && obsidianOpenUrl(vault, data.fileName) && (
+          <button
+            type="button"
+            className="solenoid-note__swatch"
+            title="Open in Obsidian"
+            onClick={(e) => { e.stopPropagation(); void openExternal(obsidianOpenUrl(vault, data.fileName)!); }}
+            onPointerDown={stopDragStart}
+            onMouseDown={stopDragStart}
+          >
+            {/* Lucide "external-link" (ISC). */}
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+            </svg>
+          </button>
+        )}
         <button
           ref={swatchRef}
           type="button"

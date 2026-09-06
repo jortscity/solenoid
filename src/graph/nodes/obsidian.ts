@@ -52,6 +52,8 @@ export class WriteObsidianNode extends ClassicPreset.Node {
   cachedDoc: DocumentValue | SolError | null = null;
   status: ObsidianWriteStatus = "idle";
   statusMessage = "";
+  /** The vault-relative path of the last note this card wrote (transient; Open in Obsidian). */
+  lastWritten = "";
   width = 262; height = 250;
 
   constructor(init?: { label?: string; fileName?: string; subfolder?: string; mode?: ObsidianWriteMode }) {
@@ -142,6 +144,7 @@ export class WriteObsidianNode extends ClassicPreset.Node {
         blockName: this.label,
       });
       this.status = "ok";
+      this.lastWritten = res.file;
       this.statusMessage = res.assets > 0
         ? `Wrote ${res.file} + ${res.assets} asset${res.assets === 1 ? "" : "s"}`
         : `Wrote ${res.file}`;
