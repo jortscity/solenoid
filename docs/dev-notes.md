@@ -25,7 +25,14 @@ for properties + the API for tasks, feed before H6). Follow-ups on the author's 
 serials, an eager `FrameValue → FrameValue` verb like `decisionMatrix` — no `FrameOp`, so
 `oneVerbCorpus` does not apply; still Track-H-gated), and **Import Obsidian Note stays a
 NoteNode** (bundle item I) — it borrows `refreshMinutes` + the watcher hook instead of becoming
-a connection node, because its value is the per-key sockets + document output a frame can't carry. Follow-up ask ("what about TaskNotes itself?") grew item F
+a connection node, because its value is the per-key sockets + document output a frame can't carry.
+**Cube/Frame audit** (author ask): frame columns are number/string/logical/date only, so
+list-valued properties and nested objects had nowhere honest to go — readers now emit `frame`
+(flat: lists joined, nested as raw text) AND `cube` (list cells, nested frames), writers take
+`cube` and write a nested frame as a `- {k: v}` block (lossless round trip), the Tasks provider's
+cube nests `timeEntries`/`complete_instances` (the separate time-entries provider is gone —
+Unnest / Cube Rollup), multi-project Schedule is a by-row composite over a Nest Join cube, and a
+write sink's preview is a `plan` frame output, not a status string. Follow-up ask ("what about TaskNotes itself?") grew item F
 into six sub-items — the ranking is by what Bases formulas cannot do (dependency traversal,
 Monte Carlo, pivots), read via the API so field mapping stays the plugin's job.
 

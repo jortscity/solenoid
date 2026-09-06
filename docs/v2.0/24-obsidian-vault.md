@@ -42,10 +42,15 @@ web read and WILL rot (mdbase is pre-1.0 and breaks by policy).
 The vault is the author's database and TaskNotes is its tracker. Solenoid **computes over**
 the vault and writes results back as properties or blocks; it never stores, tracks, or renders
 a kanban (`../out-of-scope.md` §5 "point at databases", §8 "computes, does not track"). No
-Obsidian plugin: every touchpoint is a file, a local HTTP port, or a URI. Reads emit **one
-frame**, never per-key sockets — a folder's key set changes between refreshes, and a frame
-absorbs that with no socket retype (`retypeReconciles` never fires; the Import Note keeps the
-per-key form for the single-record case).
+Obsidian plugin: every touchpoint is a file, a local HTTP port, or a URI. Reads emit **tables,
+never per-key sockets** — a folder's key set changes between refreshes, and a table absorbs
+that with no socket retype (`retypeReconciles` never fires; the Import Note keeps the per-key
+form for the single-record case). **Two outputs per reader, `frame` and `cube`** (audit
+2026-09-06): a frame column is number / string / logical / date only, so a list-valued
+property (`tags`, `projects`, `contexts`) or a nested object (`timeEntries`, a rows-of-objects
+key) has no honest cell in a flat frame; the `cube` output keeps them as list cells and nested
+frames (`CubeCell`), the `frame` output flattens them for the relational verbs. One read, two
+projections; Unnest / Cube Rollup / Cube Columns are the bridges back.
 
 ## The ecosystem, read 2026-09-06 (what the plan leans on)
 
@@ -104,24 +109,31 @@ back. Nothing on the mdbase side does that today, and Bases formulas stop at per
 `connection`, Add → Connections, label **Vault Folder**). Init: `vault` (absolute path, the
 `FileLinkNode.path` pattern, defaulting from the setting at creation and shown as a chip),
 `folder` (vault-relative, "" = root), `glob` (optional, `tasks/**`), `includeBody` (off),
-`refreshMinutes`. Emits one row per note. Columns: built-ins `path · name · folder · tags ·
-created · modified` (file times as serials; `tags` merges the property and inline `#tags`
-only if cheap — property-only in v1), then the **union of frontmatter keys in first-seen
-order**. Column typing, first source that answers wins:
+`refreshMinutes`. One row per note; outputs **`frame`** (flat) and **`cube`** (nested).
+Columns: built-ins `path · name · folder · tags · created · modified` (file times as serials;
+`tags` property-only in v1), then the **union of frontmatter keys in first-seen order**.
+**Flattening rules for `frame`:** a list → its items joined `", "` as a string; a rows-of-objects
+key or a block-style nested object → the raw YAML text as a string. **In `cube`:** a list → a
+list cell (`CubeCell[]`), a rows-of-objects key → a nested frame (the same `rowsToFrame` the
+Import Note uses), a block-style nested object → a nested frame once the parser learns the
+shape (the v1 parser work item; until then raw text there too). Column typing, first source
+that answers wins:
 
 1. an **mdbase type** whose `path_glob` matches the note (walk up from `folder` to the vault
    root for `mdbase.yaml`; needs `.yaml`/`.yml` in the fs allowlist): JSON Schema `string` /
    `number` / `integer` / `boolean` / `enum` → `string` / `number` / `number` / `logical` /
-   `string`; `format: date` / `date-time` → `date`; `array` of those → the list rungs;
-   `required` keys always present;
+   `string`; `format: date` / `date-time` → `date`; `array` of scalars → a list cell in the
+   cube, joined text in the frame; `array` of `object` → a nested frame in the cube (its
+   `properties` type the nested columns), raw text in the frame; `required` keys always
+   present;
 2. **`.obsidian/types.json`** (a direct read — the walk skips dot-folders but a read is
    allowed; `.json` is in scope): `text→string`, `number→number`, `checkbox→logical`,
    `date`/`datetime→date`, `list`/`tags`/`aliases→strlist`;
 3. the existing guesser, widened per column across rows (a column mixing numbers and text is
    `string`; all-null is `string`).
 
-A value the subset parser cannot read (a block-style nested object) becomes the raw YAML text
-in a `string` cell, never a dropped key — the row stays addressable. ISO datetimes parse to
+A value the subset parser cannot read becomes the raw YAML text in a `string` cell, never a
+dropped key — the row stays addressable. ISO datetimes parse to
 fractional serials (fixing the Note path too, one parser). Desktop: a `FrameRef` through the
 backend seam like Local File; web: the node exists, shows the desktop-only hint, emits the
 last persisted preview (nothing — a vault read is desktop-only, unlike the Import Note's
@@ -131,11 +143,17 @@ types: ColumnTypes)`), `mdbaseTypes.ts` (schema → `FrontmatterFieldType`),
 `fixtures/vault/` (an mdbase collection, a plain folder, a folder with types.json).
 
 **B. Write Properties** (sink, Add → Connections beside Write File; Run-button only,
-`sinkRunButtonOnly`). Inputs: `frame` (needs a `path` column — A's, or anything joined to it).
-Init: `keys` (which columns to write; the path column never), `vault`, `addMissing` (on).
-`data()` caches only. A **Preview** button (reads, never writes) renders the plan: "43 notes ·
-update `score` in 43 · add `rank` to 12 · 2 unreadable · 1 refused (schema)". Run applies it
-through the atomic tmp+rename write. The patch is **line-level over the raw text**, never a
+`sinkRunButtonOnly`). Input: **`cube`** (a frame widens into it, so either reader output fits;
+needs a `path` column — A's, or anything joined to it). Init: `keys` (which columns to write;
+the path column never), `vault`, `addMissing` (on). `data()` caches only and emits **`plan`, a
+frame** (`path · key · before · after · action` with action ∈ update / add / skip / refused
++ reason) — the preview IS data: filter it, sort it, count it, wire it to a Display, before
+anything is armed. The card's status line summarises the same frame ("43 notes · update
+`score` in 43 · add `rank` to 12 · 2 unreadable · 1 refused"); the `before` column is filled by
+a **Preview** button (reads, never writes) and stays null until pressed. Run applies the plan
+through the atomic tmp+rename write. **Cell → YAML:** a scalar as today; a list cell → a block
+list; a **nested frame cell → a `- {k: v}` block list**, the exact rows-of-objects shape the
+Note parser and A read back — so a cube round-trips through the vault losslessly. The patch is **line-level over the raw text**, never a
 parse-and-reserialize (which would lose comments, quoting, key order and the nested shapes we
 don't parse): find the top-level `key:` line inside the fence; a scalar value replaces the
 rest of that line (`yamlScalar` from `obsidianMarkdown.ts` does the quoting); a list value
@@ -179,32 +197,42 @@ files — field mapping, recurrence expansion and `timeEntries` totals are plugi
 (`../out-of-scope.md` §6), and `timeEntries` is the nested block shape our parser can't read;
 A over the tasks folder stays the vault-closed fallback. One connection node, **TaskNotes**,
 with a provider selector (Settings gain `taskNotesUrl` default `http://localhost:8080` +
-`taskNotesToken`; `http://**` is already allowed): **Tasks** (`GET /api/tasks` paged → `path
-· title · status · priority · due · scheduled · projects · contexts · tags · timeEstimate ·
-trackedMinutes · predecessors · archived` + user fields — `predecessors` is `blockedBy`
-joined `"A, B"` by task title, **exactly H6 Schedule's input**), **Time entries** (long form
-`task · start · end · minutes · description`), **Calendar events** (`title · start · end ·
-source`, window from two date inputs), **Stats** (`/api/stats` as scalars). Pure core
-`taskNotesApi.ts` (paging + row mapping over a fetch stub; one fixture per endpoint). What the
-frames unlock, ranked by what Bases cannot do:
+`taskNotesToken`; `http://**` is already allowed): **Tasks** (`GET /api/tasks` paged; outputs
+**`frame`** — `path · title · status · priority · due · scheduled · projects · contexts · tags
+· timeEstimate · trackedMinutes · predecessors · archived` + user fields, lists joined `", "`,
+`predecessors` = `blockedBy` joined by task title, **exactly H6 Schedule's input** — and
+**`cube`** — the same rows with `projects · contexts · tags · blockedBy` as list cells and
+`timeEntries` (`start · end · minutes · description`) and `complete_instances` (`date`) as
+**nested frames**; a task IS a record with sub-tables, which is what the cube exists for),
+**Calendar events** (`frame`: `title · start · end · source`, window from two date inputs),
+**Stats** (`/api/stats` as scalars — KPI-shaped, deliberately not a one-row frame). No
+separate time-entries provider: **Unnest** the cube's `timeEntries` for the long form and
+**Cube Rollup** (sum `minutes`) is `trackedMinutes` recomputed. Pure core `taskNotesApi.ts`
+(paging + row/cube mapping over a fetch stub; one fixture per endpoint). What the tables
+unlock, ranked by what Bases cannot do:
 
 - **F1 Schedule from dependencies.** Tasks → H6 Schedule (`../1.4-plan.md` § H6, now specced
   to the row: Task · Duration · Predecessors + Start / Working days / Holidays → Start · Finish ·
   Float · Critical + Project finish). Duration = `timeEstimate` ÷ an hours-per-day literal (a
   Math node, or H6's own `hoursPerDay` if the author wants it on the card); then `PUT`
   `scheduled` back (F6). Bases formulas are per-row — a traversal is impossible there. Gate:
-  the Track H pick; the feed ships without it.
+  the Track H pick; the feed ships without it. **Many projects at once:** Nest Join projects ×
+  tasks → a cube, a composite in the **by-row** run mode runs H6 per nested frame → a cube of
+  schedules, Cube Rollup for each project's finish; Decision Sensitivity's scenario cube is the
+  precedent for "one row per run, the result nested".
 - **F2 Capacity and deadline probability.** GROUPBY due-week of `timeEstimate` minus calendar
   hours (H7 Common free time takes the busy windows) → overload chart; estimates through the
-  composite Monte Carlo run mode with a per-task spread → the probability of a date.
+  composite Monte Carlo run mode with a per-task spread → the probability of a date. The
+  per-task spread is a column on the tasks frame (a user field, or actual ÷ estimate from F3
+  joined by project), not a literal per task.
 - **F3 Time analytics and billing.** PIVOTBY week × project, Window running totals,
   actual ÷ estimate per project as a calibration table; join a rates frame → an invoice Report
   → Write to Obsidian (C into the client's note).
 - **F4 "What next" via Decision Matrix.** Criteria from the row (priority, days-to-due,
   estimate, a user field); write `score` back (B, or F6 via the API); a Bases view sorted by it
   is the prioritized list.
-- **F5 Recurrence adherence.** `complete_instances` (a date list column) expanded via Unnest →
-  streaks and completion rate per task → heatmap.
+- **F5 Recurrence adherence.** Unnest the cube's `complete_instances` → `task · date` → Window
+  (lag) for streaks, GROUPBY for completion rate per task → heatmap.
 - **F6 Write Tasks** (sink, Run-button only, Preview like B): rows → `POST /api/tasks` (new;
   an amortization schedule as payment tasks, a maintenance interval as a recurring task) or
   `PUT /api/tasks/:id` when the row carries `path` (F1's reschedules, F4's score into a user
@@ -248,11 +276,11 @@ actions, CloudEvents, hosted Connect. Wikilink resolution inside Note bodies and
 
 | Node | Kind · menu | In | Out | Init (persisted) | Pure core · test |
 |---|---|---|---|---|---|
-| Vault Folder | connection · Connections | — | `frame` | vault, folder, glob, includeBody, refreshMinutes | `vaultFrame.ts`, `mdbaseTypes.ts`, `obsidianTypes.ts` · `vaultFrame.test.ts` over `fixtures/vault/` |
-| Write Properties | sink · Connections | `frame` | — | vault, keys, addMissing | `frontmatterPatch.ts` · `frontmatterPatch.test.ts` (round-trips: untouched bytes identical) |
+| Vault Folder | connection · Connections | — | `frame` (flat), `cube` (nested) | vault, folder, glob, includeBody, refreshMinutes | `vaultFrame.ts` (`notesToTables` → both projections from one parse), `mdbaseTypes.ts`, `obsidianTypes.ts` · `vaultFrame.test.ts` over `fixtures/vault/` |
+| Write Properties | sink · Connections | `cube` (frame widens) | `plan` frame | vault, keys, addMissing | `frontmatterPatch.ts` (+ nested frame → `- {k: v}` block) · `frontmatterPatch.test.ts` (round-trips: untouched bytes identical; cube → vault → cube equal) |
 | Write to Obsidian (+mode) | sink (exists) | `document` | — | + mode | `managedBlock.ts` · `managedBlock.test.ts` |
-| TaskNotes | connection · Connections | `from`, `to` (dates, Calendar provider only) | `frame` (Stats: scalars) | provider, refreshMinutes | `taskNotesApi.ts` · `taskNotesApi.test.ts` (fixtures per endpoint) |
-| Write Tasks | sink · Connections | `frame` | — | mode (create / update), keys | shares `taskNotesApi.ts` |
+| TaskNotes | connection · Connections | `from`, `to` (dates, Calendar provider only) | Tasks: `frame` + `cube`; Calendar: `frame`; Stats: scalars | provider, refreshMinutes | `taskNotesApi.ts` · `taskNotesApi.test.ts` (fixtures per endpoint) |
+| Write Tasks | sink · Connections | `cube` (frame widens) | `plan` frame | mode (create / update), keys | shares `taskNotesApi.ts`; list cells → the API's arrays |
 
 Every write node: `enabled` stays out of the persistence whitelist (loads disarmed, the
 existing `WriteObsidianNode` pattern), status line + Preview, `socketDocs` say "wiring never
@@ -262,7 +290,8 @@ unreachable vault/port with the reason in the status line, never a throw.
 ## Seeds
 
 Seeds must load on web with no vault, so each ships a **Frame Input snapshot in the exact
-shape the feed emits** (a comment on the node: "replace me with a TaskNotes node"):
+shape the feed's `frame` emits** (a comment on the node: "replace me with a TaskNotes node";
+the nested shape is demonstrable with Build Cube + Nest Join if a seed needs it):
 **"Which task next?"** (F4: 12 tasks → Decision Matrix with priority / days-to-due / estimate →
 Score → bar chart, and a Write Properties node disarmed at the end) and, when H6 lands,
 **"Kitchen remodel from TaskNotes"** (H6's own seed re-based on the tasks shape, with
@@ -302,6 +331,9 @@ F is independent of B and C and could go first if the author's own use is task-s
    not a second node.
 6. **Import Note stays a Note** (item I) and borrows the refresh timer + watcher hook rather
    than becoming a connection node.
+7. **Readers emit `frame` + `cube`, writers take `cube`, and a sink's preview is a `plan`
+   frame.** Flat for the verbs, nested for what a frame cannot hold, and the plan is data the
+   graph can inspect rather than a string on a card.
 
 ## Risks
 
