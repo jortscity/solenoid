@@ -138,7 +138,7 @@ export {
   DistinctComponent, HeadComponent, SortFrameComponent, FilterFrameComponent, JoinComponent, XLookupComponent,
   ColumnsComponent, GroupByFrameComponent, PivotComponent, UnpivotComponent,
   NestComponent, UnnestComponent, AppendComponent, BindColumnsComponent, RenameComponent,
-  SplitColumnComponent, AddIndexComponent, DecisionMatrixComponent, DecisionSensitivityComponent, SettleComponent, AllocatorComponent,
+  SplitColumnComponent, AddIndexComponent, DecisionMatrixComponent, DecisionSensitivityComponent, SettleComponent, PayoffPlannerComponent, AllocatorComponent,
   ReconcileComponent,
   FillBlanksComponent, ReplaceValuesComponent, MergeColumnsComponent, HeadersComponent, DropBlankRowsComponent,
   DescribeComponent, CorrMatrixComponent, KMeansComponent, PcaComponent, LogisticComponent, WindowComponent,

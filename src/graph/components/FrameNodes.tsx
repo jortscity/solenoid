@@ -31,6 +31,7 @@ import type {
   DecisionMatrixNode as DecisionMatrixNodeType,
   DecisionSensitivityNode as DecisionSensitivityNodeType,
   SettleNode as SettleNodeType,
+  PayoffPlannerNode as PayoffPlannerNodeType,
   AllocatorNode as AllocatorNodeType,
   ReconcileNode as ReconcileNodeType,
   XLookupNode as XLookupNodeType,
@@ -92,6 +93,8 @@ import { dropInputCables } from "./cablePrune";
 import { nodeDisplayName } from "../catalogUtils";
 import { ALLOCATE_MODE_META } from "../rete-nodes";
 import type { AllocateMode } from "../nodes/allocateOps";
+import type { PayoffOrder } from "../nodes/payoffOps";
+import { PAYOFF_ORDER_META } from "../nodes/frame";
 
 const ALLOCATE_MODE_OPTIONS: OpOption<AllocateMode>[] =
   (Object.entries(ALLOCATE_MODE_META) as [AllocateMode, { label: string }][]).map(([value, m]) => ({ value, label: m.label }));
@@ -749,6 +752,27 @@ export function AllocatorComponent({ data, emit }: NodeProps<AllocatorNodeType>)
       <ArgSelect value={mode} onChange={setMode} options={ALLOCATE_MODE_OPTIONS} />
       <InlineInputs node={data} emit={emit} cableOnlyKeys={cableOnly} />
       <FrameOrCubeDisplay value={data.cachedResult} label={nodeDisplayName(data)} />
+    </NodeShell>
+  );
+}
+
+// ─── PAYOFF PLANNER ──────────────────────────────────────────────────────────
+const PAYOFF_ORDER_OPTIONS: OpOption<PayoffOrder>[] =
+  (Object.entries(PAYOFF_ORDER_META) as [PayoffOrder, { label: string }][]).map(([value, m]) => ({ value, label: m.label }));
+const PAYOFF_VIEW_OPTIONS: { value: "summary" | "schedule"; label: string; title: string }[] = [
+  { value: "summary", label: "Summary", title: "One row per debt: months to clear, interest paid, payoff date" },
+  { value: "schedule", label: "Schedule", title: "One row per month: each debt's remaining balance" },
+];
+
+export function PayoffPlannerComponent({ data, emit }: NodeProps<PayoffPlannerNodeType>) {
+  const [order, setOrder] = useNodeField(data, "order");
+  const [mode, setMode] = useNodeField(data, "mode");
+  return (
+    <NodeShell node={data} emit={emit}>
+      <ArgSelect value={order} onChange={setOrder} options={PAYOFF_ORDER_OPTIONS} />
+      <InlineInputs node={data} emit={emit} />
+      <SegToggle value={mode} options={PAYOFF_VIEW_OPTIONS} onChange={setMode} />
+      <FrameDisplay frame={data.cachedResult} label={nodeDisplayName(data)} />
     </NodeShell>
   );
 }

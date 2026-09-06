@@ -1,5 +1,5 @@
 import { ClassicPreset } from "rete";
-import { readInput, numIn, numListOut, tableOut, strTableOut, dateTableOut, logicalTableOut, listIn, listOut, strIn, strComboIn, strOut, strListIn, strListOut, dateListIn, dateListOut, logicalListIn, logicalListOut, frameIn, frameOut, cubeIn, cubeOut, cubeAdoptIn, tableAdoptOut, anyIn, anyDataIn, staticTrueAnyOut, adoptiveTableIn, adoptiveListIn, lambdaIn } from "./shared";
+import { readInput, numIn, dateIn, numListOut, tableOut, strTableOut, dateTableOut, logicalTableOut, listIn, listOut, strIn, strComboIn, strOut, strListIn, strListOut, dateListIn, dateListOut, logicalListIn, logicalListOut, frameIn, frameOut, cubeIn, cubeOut, cubeAdoptIn, tableAdoptOut, anyIn, anyDataIn, staticTrueAnyOut, adoptiveTableIn, adoptiveListIn, lambdaIn } from "./shared";
 import type { PassthroughSpec } from "./passthrough";
 import { extractVariables, compileEvaluator, rowRefNames, type ExprEvaluator } from "../excelFormula";
 import { isLambdaValue } from "../lambdaValue";
@@ -36,6 +36,7 @@ import { pairIdsFromKeys } from "./logic";
 import type { PivotSpec, FilterCondConfig } from "../frameVerbs";
 import type { AllocateMode } from "./allocateOps";
 import { settleGroup } from "./settleOps";
+import { payoffPlan, type PayoffOrder } from "./payoffOps";
 import { describeFrame, correlationMatrix, WINDOW_FN_NEEDS_COLUMN, WINDOW_FN_NEEDS_N, type CorrMethod, type WindowFn } from "../frameVerbs";
 export type { WindowFn } from "../frameVerbs";
 export type { CorrMethod } from "../frameVerbs";
@@ -1699,6 +1700,123 @@ export class AllocatorNode extends ClassicPreset.Node {
     this.cachedResult = runVerb(() => allocateFrame(f, this.mode, amount));
     return { frame: this.cachedResult };
   }
+}
+
+// ─── PAYOFF PLANNER (1.4 H1) ─────────────────────────────────────────────────
+// Debts (Balance · APR · Min payment) + an extra monthly amount → when each clears and what
+// it costs, paying the head debt first: avalanche (highest APR) or snowball (smallest).
+export type PayoffView = "summary" | "schedule";
+
+export const PAYOFF_ORDER_META = {
+  avalanche: { label: "Avalanche", description: "Extra goes to the highest APR first: the least interest overall." },
+  snowball:  { label: "Snowball",  description: "Extra goes to the smallest balance first: the quickest first win." },
+} satisfies Record<PayoffOrder, { label: string; description: string }>;
+
+export class PayoffPlannerNode extends ClassicPreset.Node {
+  static socketDocs: Record<string, string> = {
+    debts: "Rows are debts: the first text column names them, Balance what is owed, APR the yearly rate (0.24 or 24), and Min the minimum monthly payment. Balance's currency rides onto the result.",
+    extra: "The extra paid every month on top of the minimums; it moves to the next debt as each one clears.",
+    start: "The month the plan starts. Unwired, this month.",
+    frame: "Summary: Debt · Months · Interest · Payoff date. Schedule: Month · a balance column per debt.",
+  };
+
+  label: string;
+  order: PayoffOrder;
+  mode: PayoffView;
+  literals: Record<string, number> = { extra: 0 };
+  cachedResult: FrameValue | SolError | null = null;
+  width = 240; height = 220;
+
+  static frameHints: Record<string, FrameHint> = {
+    debts: { columns: [
+      { name: "Debt", type: "string", cells: ["Card", "Car", "Store"] },
+      { name: "Balance", type: "number", cells: [3000, 8000, 500] },
+      { name: "APR", type: "number", cells: [0.24, 0.06, 0.18] },
+      { name: "Min", type: "number", cells: [90, 250, 25] },
+    ] },
+  };
+
+  constructor(init?: { label?: string; order?: PayoffOrder; mode?: PayoffView }) {
+    super("PayoffPlanner");
+    this.label = init?.label ?? "Payoff Planner";
+    this.order = init?.order === "snowball" ? "snowball" : "avalanche";
+    this.mode = init?.mode === "schedule" ? "schedule" : "summary";
+    this.addInput("debts", frameIn("Debts"));
+    this.addInput("extra", numIn("Extra per month"));
+    this.addInput("start", dateIn("Start"));
+    this.addOutput("frame", frameOut("Plan"));
+  }
+
+  frameShape(_outKey: string, ctx: FrameShapeContext): Shape | null {
+    const input = ctx.inputShape("debts");
+    if (!input) return null;
+    if (this.mode === "summary") {
+      const name = input.columns.find((c) => c.type === "string")?.name ?? "Debt";
+      return { columns: [{ name, type: "string" }, { name: "Months", type: "number" }, { name: "Interest", type: "number" }, { name: "Payoff date", type: "date" }] };
+    }
+    return null; // a balance column per debt — the count is the frame's row count
+  }
+
+  data(inputs: { debts?: (FrameValue | null)[]; extra?: (number | null)[]; start?: (number | null)[] }) {
+    const f = inputs.debts?.[0] ?? null;
+    if (!f) { this.cachedResult = null; return { frame: null }; }
+    const extra = readInput(inputs.extra, this.literals.extra ?? 0) ?? 0;
+    const start = inputs.start ? inputs.start[0] : localMonthStartSerial();
+    this.cachedResult = runVerb(() => payoffFrame(f, extra, this.order, this.mode, start));
+    return { frame: this.cachedResult };
+  }
+}
+
+function localMonthStartSerial(): number {
+  const d = new Date();
+  return Date.UTC(d.getFullYear(), d.getMonth(), 1) / 86400000 + 25569;
+}
+
+/** The serial `months` calendar months after `start` (same day-of-month, JS rollover). */
+function addMonthsSerial(start: number, months: number): number {
+  const d = new Date(Math.round((start - 25569) * 86400000));
+  d.setUTCMonth(d.getUTCMonth() + months);
+  return Math.floor(d.getTime() / 86400000 + 25569);
+}
+
+/** The frame half of the Payoff Planner: read the debts, run the plan, shape the view. */
+export function payoffFrame(f: FrameValue, extra: number, order: PayoffOrder, view: PayoffView, start: number | null): FrameValue {
+  const byName = (...names: string[]) => { const set = new Set(names); return f.columns.find((c) => set.has(c.name.trim().toLowerCase())); };
+  const nameCol = f.columns.find((c) => c.type === "string");
+  const nums = f.columns.filter((c) => c.type === "number");
+  const balCol = byName("balance", "owed", "principal") ?? nums[0];
+  const aprCol = byName("apr", "rate", "interest") ?? nums.filter((c) => c !== balCol)[0];
+  const minCol = byName("min", "minimum", "min payment", "payment") ?? nums.filter((c) => c !== balCol && c !== aprCol)[0];
+  if (!balCol || !aprCol || !minCol) throw solError("#VALUE!", "Payoff Planner needs Balance, APR and Min payment number columns");
+  const rows = frameRowCount(f);
+  const num = (col: FrameColumn, i: number, what: string): number => {
+    const v = col.values[i];
+    if (isSolError(v)) throw v;
+    if (v == null) return 0;
+    if (typeof v !== "number" || !Number.isFinite(v)) throw solError("#VALUE!", `Payoff Planner: every ${what} must be a number`);
+    return v;
+  };
+  const debts = Array.from({ length: rows }, (_, i) => ({
+    name: String(nameCol?.values[i] ?? `Debt ${i + 1}`),
+    balance: num(balCol, i, "balance"), apr: num(aprCol, i, "APR"), min: num(minCol, i, "minimum payment"),
+  }));
+  let plan;
+  try { plan = payoffPlan(debts, extra, order); }
+  catch (e) { throw solError("#VALUE!", `Payoff Planner: ${e instanceof Error ? e.message : String(e)}`); }
+  const money = { ...(balCol.unit ? { unit: balCol.unit } : {}), ...(balCol.format ? { format: balCol.format } : {}) };
+  if (view === "schedule") {
+    const months = plan.schedule.length;
+    return { __frame: true, columns: [
+      { name: "Month", type: "number", values: Array.from({ length: months }, (_, m) => m) },
+      ...debts.map((d, j) => ({ name: d.name, type: "number" as const, values: plan.schedule.map((row) => row[j]), ...money })),
+    ] };
+  }
+  return { __frame: true, columns: [
+    { name: nameCol?.name ?? "Debt", type: "string", values: debts.map((d) => d.name) },
+    { name: "Months", type: "number", values: plan.perDebt.map((d) => d.months) },
+    { name: "Interest", type: "number", values: plan.perDebt.map((d) => d.interest), ...money },
+    { name: "Payoff date", type: "date", values: plan.perDebt.map((d) => (start == null ? null : addMonthsSerial(start, d.months))) },
+  ] };
 }
 
 // ─── GROUP COST SETTLE (1.4 H3) ──────────────────────────────────────────────
