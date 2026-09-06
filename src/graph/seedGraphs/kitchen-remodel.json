@@ -1,0 +1,204 @@
+{
+  "v": 2,
+  "order": 517,
+  "label": "Kitchen remodel",
+  "group": "Worked examples",
+  "nodes": [
+    {
+      "id": "noteIntro",
+      "type": "NoteNode",
+      "x": -40,
+      "y": -243,
+      "init": {
+        "label": "Schedule",
+        "body": "# When will it be done, and what can't slip?\nA **Schedule** node runs the critical-path method over a task list: each task's **Duration** in working days and the tasks it waits on (**Predecessors**).\n\nIt appends **Start · Finish · Float · Critical** to the rows. Float is how many days a task can slip without moving the finish; the tasks with none are the critical path. **Project finish** comes out as its own value, and **Gantt** is Mermaid source the Mermaid node draws.\n\nTry it: make Paint take 5 days instead of 2 and watch it join the critical path.",
+        "color": "violet",
+        "width": 380,
+        "height": 270
+      }
+    },
+    {
+      "id": "tasks",
+      "type": "FrameInputNode",
+      "x": 72,
+      "y": 328,
+      "init": {
+        "label": "Tasks",
+        "frameText": "[{\"name\":\"Task\",\"type\":\"string\",\"values\":[\"Demolition\",\"Plumbing rough-in\",\"Electrical rough-in\",\"Drywall\",\"Paint\",\"Cabinets\",\"Countertops\",\"Final inspection\"]},{\"name\":\"Duration\",\"type\":\"number\",\"values\":[2,3,2,2,2,4,5,0]},{\"name\":\"Predecessors\",\"type\":\"string\",\"values\":[\"\",\"Demolition\",\"Demolition\",\"Plumbing rough-in, Electrical rough-in\",\"Drywall\",\"Drywall\",\"Cabinets, Paint\",\"Countertops\"]}]"
+      }
+    },
+    {
+      "id": "start",
+      "type": "DateInputNode",
+      "x": 95,
+      "y": 586,
+      "init": {
+        "label": "Project start"
+      },
+      "stringLiterals": {
+        "date": "05-Jan-2026"
+      }
+    },
+    {
+      "id": "holidays",
+      "type": "ListInputNode",
+      "x": 95,
+      "y": 123,
+      "init": {
+        "label": "Holidays",
+        "valueKeys": [
+          "v0"
+        ],
+        "dataType": "date"
+      },
+      "stringLiterals": {
+        "v0": "19-Jan-2026"
+      }
+    },
+    {
+      "id": "schedule",
+      "type": "ScheduleNode",
+      "x": 426,
+      "y": -109,
+      "init": {
+        "label": "Schedule",
+        "mode": "working"
+      }
+    },
+    {
+      "id": "critical",
+      "type": "FilterFrameNode",
+      "x": 804,
+      "y": 214,
+      "init": {
+        "label": "Critical path",
+        "condConfig": {
+          "0": {
+            "op": "eq"
+          }
+        },
+        "valueKeys": [
+          "frame",
+          "column0",
+          "value0"
+        ]
+      },
+      "stringLiterals": {
+        "column0": "Float",
+        "value0": "0"
+      }
+    },
+    {
+      "id": "criticalDisplay",
+      "type": "DisplayNode",
+      "x": 1129,
+      "y": 215,
+      "size": {
+        "w": 420,
+        "h": 260
+      }
+    },
+    {
+      "id": "finishDisplay",
+      "type": "DisplayNode",
+      "x": 834,
+      "y": 91,
+      "init": {
+        "label": "Project finish"
+      }
+    },
+    {
+      "id": "gantt",
+      "type": "MermaidNode",
+      "x": 795,
+      "y": 608,
+      "init": {
+        "label": "Gantt"
+      },
+      "stringLiterals": {
+        "source": ""
+      }
+    },
+    {
+      "id": "grp-plan",
+      "type": "GroupNode",
+      "x": 48,
+      "y": 65,
+      "init": {
+        "label": "The plan",
+        "members": [
+          "tasks",
+          "start",
+          "holidays"
+        ],
+        "color": "amber",
+        "collapsed": false,
+        "width": 292,
+        "height": 628
+      }
+    },
+    {
+      "id": "grp-result",
+      "type": "GroupNode",
+      "x": 780,
+      "y": 33,
+      "init": {
+        "label": "Critical path + finish",
+        "members": [
+          "critical",
+          "criticalDisplay",
+          "finishDisplay"
+        ],
+        "color": "green",
+        "collapsed": false,
+        "width": 797,
+        "height": 537
+      }
+    }
+  ],
+  "connections": [
+    {
+      "source": "tasks",
+      "sourceOutput": "frame",
+      "target": "schedule",
+      "targetInput": "tasks"
+    },
+    {
+      "source": "start",
+      "sourceOutput": "result",
+      "target": "schedule",
+      "targetInput": "start"
+    },
+    {
+      "source": "holidays",
+      "sourceOutput": "list",
+      "target": "schedule",
+      "targetInput": "holidays"
+    },
+    {
+      "source": "schedule",
+      "sourceOutput": "frame",
+      "target": "critical",
+      "targetInput": "frame"
+    },
+    {
+      "source": "critical",
+      "sourceOutput": "frame",
+      "target": "criticalDisplay",
+      "targetInput": "in"
+    },
+    {
+      "source": "schedule",
+      "sourceOutput": "finish",
+      "target": "finishDisplay",
+      "targetInput": "in"
+    },
+    {
+      "source": "schedule",
+      "sourceOutput": "gantt",
+      "target": "gantt",
+      "targetInput": "source"
+    }
+  ],
+  "standoffs": []
+}
