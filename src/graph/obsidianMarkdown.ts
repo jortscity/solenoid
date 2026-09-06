@@ -5,6 +5,8 @@
 import { type FrameValue, formatFrameCell, isFrameValue } from "./frame";
 import { isMermaidValue, type MermaidValue } from "./mermaidValue";
 import { isDocumentValue, type DocumentValue } from "./documentValue";
+import { isLambdaValue, type LambdaValue } from "./lambdaValue";
+import { formulaToLatex } from "./excelFormula";
 
 // Duplicates noteInlineRefs.ts's grammar rather than importing it, so this module stays
 // dependency-light; obsidianMarkdown.test.ts machine-checks the two agree.
@@ -41,6 +43,24 @@ export function mermaidToMarkdown(m: MermaidValue): string {
 /** A LaTeX string → a display-math block (`$$…$$`), Obsidian's native math. */
 export function mathToMarkdown(latex: string): string {
   return `$$\n${latex.trim()}\n$$`;
+}
+
+/** A lambda → the same `f(params) = body` display math the Report typesets with KaTeX,
+ *  then a plain "where" legend when the lambda carries descriptions. A body the LaTeX
+ *  printer can't parse falls back to the inline-code text form. */
+export function lambdaToMarkdown(v: LambdaValue): string {
+  const expr = (v.expr ?? "").trim();
+  const bodyTex = expr ? formulaToLatex(expr) : null;
+  const sig = `λ(${v.params.join(", ")})`;
+  const head = bodyTex
+    ? mathToMarkdown(`f(${v.params.map((p) => p.replace(/[\\{}]/g, "")).join(",\\,")}) = ${bodyTex}`)
+    : `\`${expr ? `${sig} = ${expr}` : sig}\``;
+  const desc = v.descriptions;
+  const described = desc
+    ? [...v.params, ...Object.keys(desc).filter((k) => !v.params.includes(k))].filter((k) => desc[k]?.trim())
+    : [];
+  if (described.length === 0) return head;
+  return `${head}\n\nwhere\n${described.map((k) => `- *${k}* — ${desc![k].trim()}`).join("\n")}`;
 }
 
 // ─── Frontmatter YAML ─────────────────────────────────────────────────────────
@@ -101,13 +121,14 @@ export type ObsidianBlock =
   | { kind: "md"; md: string }
   | { kind: "chart"; value: unknown }; // render to an image asset at Run time
 
-/** Frame/mermaid/math get native markdown, a chart is deferred to the DOM-render pass, and
+/** Frame/mermaid/math/lambda get native markdown, a chart is deferred to the DOM-render pass, and
  *  anything else falls back to its plain string form. A DOCUMENT (a wired Note embed)
  *  inlines its markdown body. */
 export function valueToObsidianBlock(value: unknown): ObsidianBlock {
   if (isFrameValue(value)) return { kind: "md", md: frameToMarkdownTable(value) };
   if (isMermaidValue(value)) return { kind: "md", md: mermaidToMarkdown(value) };
   if (isDocumentValue(value)) return { kind: "md", md: value.body };
+  if (isLambdaValue(value)) return { kind: "md", md: lambdaToMarkdown(value) };
   // Charts (recharts / hand-drawn SVG) can't be markdown — render at write time.
   if (typeof value === "object" && value !== null && "__chart" in (value as object)) {
     return { kind: "chart", value };
