@@ -42,7 +42,7 @@ import { FrameInputNode, BuildFrameNode, SplitFrameNode, GetColumnNode, AddColum
 import { BuildCubeNode, NestJoinNode, CubeColumnsNode, CubeRollupNode } from "./cube";
 import { WebSourceNode, LocalFileNode, ImportHtmlNode, ImportXmlNode } from "./connection";
 import { DataFeedNode } from "./dataFeed";
-import { TaskNotesNode } from "./taskNotes";
+import { TaskNotesNode, WriteTasksNode } from "./taskNotes";
 import { WriteFileNode } from "./sink";
 import { WriteObsidianNode } from "./obsidian";
 import { ExpectNode } from "./quality";
@@ -146,6 +146,7 @@ export function nodeKindOf(node: ClassicPreset.Node): NodeKind {
     node instanceof ImageNode || node instanceof FileLinkNode ||
     node instanceof ExpectNode ||
     node instanceof WriteFileNode ||
+    node instanceof WriteTasksNode ||
     node instanceof WriteObsidianNode ||
     node instanceof CompositeNode
   ) return "util";

@@ -83,7 +83,7 @@ export async function fetchText(url: string, init?: { headers?: Record<string, s
   }
   let res: Response;
   try {
-    res = await fetch(url, Object.keys(extra).length ? { headers: extra } : undefined);
+    res = Object.keys(extra).length ? await fetch(url, { headers: extra }) : await fetch(url);
   } catch (e) {
     // On the web build a cross-origin block is a bare TypeError with no Response;
     // on desktop this path is same-origin only, so a TypeError there is not CORS.
@@ -92,4 +92,22 @@ export async function fetchText(url: string, init?: { headers?: Record<string, s
   }
   if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`.trim());
   return { text: await readCappedText(res), contentType: res.headers.get("content-type") ?? "" };
+}
+
+/** A JSON request (POST / PUT / DELETE) — the write half of the local-API nodes. Same
+ *  desktop/browser split as fetchText; the reply body comes back as text. */
+export async function fetchJson(url: string, init: { method: "POST" | "PUT" | "DELETE"; headers?: Record<string, string>; body?: unknown }): Promise<FetchedText> {
+  const headers: Record<string, string> = { "Content-Type": "application/json", ...(init.headers ?? {}) };
+  const body = init.body === undefined ? undefined : JSON.stringify(init.body);
+  const absolute = /^https?:\/\//i.test(url.trim());
+  let res: Response;
+  if (isDesktop() && absolute) {
+    const { fetch: tauriFetch } = await import("@tauri-apps/plugin-http");
+    res = await tauriFetch(url, { method: init.method, headers: { "User-Agent": DATA_FETCH_UA, ...headers }, body });
+  } else {
+    res = await fetch(url, { method: init.method, headers, body });
+  }
+  const text = await readCappedText(res);
+  if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`.trim() + (text ? `: ${text.slice(0, 200)}` : ""));
+  return { text, contentType: res.headers.get("content-type") ?? "" };
 }

@@ -5,12 +5,17 @@ import { settingsStore } from "../settingsStore";
 import { apiKeyStore } from "../apiKeyStore";
 import { fetchText } from "../httpBridge";
 import { jsDateToSerial } from "./dateSerial";
-import { cubeFromColumns, type CubeValue, type FrameValue } from "../frame";
+import { cubeFromColumns, isCubeValue, type CubeValue, type FrameValue } from "../frame";
+import { isSolError, type SolError } from "../errorValue";
 import {
   TASKNOTES_KEY_ID, TASKS_PAGE, tasksUrl, eventsUrl, statsUrl, authHeaders,
   parseTasksPage, tasksToCube, parseEvents, parseStats,
-  type TaskNotesProvider, type TaskRecord, type TaskStats,
+  planTaskWrites, taskPlanFrame, taskUrl, createTaskUrl, taskRecord, unwrap, cellToTaskField,
+  type TaskNotesProvider, type TaskRecord, type TaskStats, type TaskWritePlanRow,
 } from "../taskNotesApi";
+import { cubeIn, frameOut as frameOutPort } from "./shared";
+import { fetchJson } from "../httpBridge";
+import { type Shape } from "../frameShape";
 
 // TaskNotes (Obsidian plugin) over its local HTTP API — the Obsidian bundle's item F.
 // One connection node, a provider select: Tasks → a cube, Calendar → a frame between two
@@ -155,5 +160,149 @@ export class TaskNotesNode extends ClassicPreset.Node {
       const friendly = /HTTP 401/.test(msg) ? "Token rejected. Paste the plugin's API token." : /Failed to fetch|ECONNREFUSED|error sending request|NetworkError|Couldn't fetch this URL/i.test(msg) ? "Can't reach TaskNotes. Turn on its HTTP API and check the port in Settings." : msg;
       connectionStore.setState(this.id, { status: "error", message: friendly });
     }
+  }
+}
+
+// ─── WRITE TASKS (F6): rows → POST /api/tasks, or PUT /api/tasks/:id when the row carries
+// `path`. Run-button only (sinkRunButtonOnly): data() caches and emits the `plan` frame;
+// Preview reads the current tasks to mark unchanged rows; Run sends the rest.
+
+export type WriteTasksStatus = "idle" | "previewing" | "writing" | "ok" | "error";
+
+export class WriteTasksNode extends ClassicPreset.Node {
+  static socketDocs: Record<string, string> = {
+    tasks: "Wiring rows never writes a task. The write runs only from the Run button, and the node loads disarmed. A row with a path updates that task; a row without one creates a task from its title.",
+    plan: "One row per input row: path, title, the action (create, update, unchanged, skip) and the fields that will be sent. Preview fills in unchanged by reading the current tasks.",
+  };
+  label: string;
+  /** Columns to send, comma-separated; "" = every writable column present. */
+  stringLiterals: Record<string, string> = { keys: "" };
+  /** Never persisted (sink.ts) — always false on a fresh construction. */
+  enabled = false;
+  cachedCube: CubeValue | SolError | null = null;
+  cachedPlan: FrameValue | SolError | null = null;
+  /** Per-row resolution from Preview (index → action), cleared when the input changes. */
+  private resolved = new Map<number, string>();
+  private planRows: TaskWritePlanRow[] = [];
+  status: WriteTasksStatus = "idle";
+  statusMessage = "";
+  width = 262; height = 250;
+
+  /** The plan frame's columns are fixed (declareOnce). */
+  frameShape(): Shape {
+    return { columns: [
+      { name: "path", type: "string" }, { name: "title", type: "string" },
+      { name: "action", type: "string" }, { name: "fields", type: "string" },
+    ] };
+  }
+
+  constructor(init?: { label?: string }) {
+    super("WriteTasks");
+    this.label = init?.label ?? "Write Tasks";
+    this.addInput("tasks", cubeIn("Rows"));
+    this.addOutput("plan", frameOutPort("Plan"));
+  }
+
+  private keys(): string[] {
+    return (this.stringLiterals.keys ?? "").split(",").map((k) => k.trim()).filter(Boolean);
+  }
+
+  // Caches only — never touches the network.
+  data(inputs: { tasks?: (CubeValue | SolError | null)[] }): { plan: FrameValue | SolError | null } {
+    const raw = inputs.tasks?.[0] ?? null;
+    if (raw !== this.cachedCube) this.resolved = new Map();
+    this.cachedCube = raw;
+    if (isSolError(raw)) { this.cachedPlan = raw; this.planRows = []; return { plan: raw }; }
+    if (!isCubeValue(raw)) { this.cachedPlan = null; this.planRows = []; return { plan: null }; }
+    this.planRows = planTaskWrites(raw, this.keys());
+    this.cachedPlan = taskPlanFrame(this.planRows, this.resolved);
+    return { plan: this.cachedPlan };
+  }
+
+  private apiUrl(): string { return settingsStore.get("taskNotesUrl"); }
+  private headers(): Record<string, string> { return authHeaders(apiKeyStore.get(TASKNOTES_KEY_ID)); }
+
+  /** Read every update row's current task and mark the ones the payload wouldn't change. */
+  async preview(): Promise<void> {
+    if (this.status === "previewing" || this.status === "writing") return;
+    if (!this.planRows.length) { this.status = "error"; this.statusMessage = "Nothing to write. Connect rows."; return; }
+    this.status = "previewing";
+    try {
+      const resolved = new Map<number, string>();
+      let unchanged = 0, unreadable = 0;
+      for (let i = 0; i < this.planRows.length; i++) {
+        const r = this.planRows[i];
+        if (r.action !== "update") continue;
+        try {
+          const { text } = await fetchText(taskUrl(this.apiUrl(), r.path), { headers: this.headers() });
+          const current = taskRecord((unwrap(text) ?? {}) as Record<string, unknown>);
+          const same = Object.entries(r.payload).every(([k, v]) => JSON.stringify(v) === JSON.stringify(currentField(current, k)));
+          if (same) { resolved.set(i, "unchanged"); unchanged++; }
+        } catch {
+          resolved.set(i, "unreadable"); unreadable++;
+        }
+      }
+      this.resolved = resolved;
+      this.cachedPlan = taskPlanFrame(this.planRows, this.resolved);
+      const creates = this.planRows.filter((r) => r.action === "create").length;
+      const updates = this.planRows.filter((r, i) => r.action === "update" && !resolved.has(i)).length;
+      this.status = "idle";
+      this.statusMessage = `Preview: ${creates} to create, ${updates} to update, ${unchanged} unchanged${unreadable ? `, ${unreadable} unreadable` : ""}`;
+    } catch (e) {
+      this.status = "error";
+      this.statusMessage = e instanceof Error ? e.message : String(e);
+    }
+  }
+
+  /** Call ONLY from the node's Run button; re-entrancy-guarded. */
+  async run(): Promise<void> {
+    if (this.status === "writing" || this.status === "previewing") return;
+    if (!this.enabled) { this.status = "error"; this.statusMessage = "Disabled. Arm it first."; return; }
+    if (isSolError(this.cachedCube)) { this.status = "error"; this.statusMessage = this.cachedCube.code; return; }
+    if (!this.planRows.length) { this.status = "error"; this.statusMessage = "Nothing to write. Connect rows."; return; }
+    this.status = "writing";
+    let created = 0, updated = 0, failed = 0;
+    const failures: string[] = [];
+    try {
+      for (let i = 0; i < this.planRows.length; i++) {
+        const r = this.planRows[i];
+        const state = this.resolved.get(i);
+        if (r.action === "skip" || state === "unchanged" || state === "unreadable") continue;
+        try {
+          if (r.action === "create") {
+            await fetchJson(createTaskUrl(this.apiUrl()), { method: "POST", headers: this.headers(), body: r.payload });
+            created++;
+          } else {
+            await fetchJson(taskUrl(this.apiUrl(), r.path), { method: "PUT", headers: this.headers(), body: r.payload });
+            updated++;
+          }
+        } catch (e) {
+          failed++;
+          if (failures.length < 3) failures.push(`${r.title || r.path}: ${e instanceof Error ? e.message : String(e)}`);
+        }
+      }
+      this.status = failed ? "error" : "ok";
+      this.statusMessage = `${created} created, ${updated} updated${failed ? `, ${failed} failed — ${failures.join("; ")}` : ""}`;
+    } catch (e) {
+      this.status = "error";
+      this.statusMessage = e instanceof Error ? e.message : String(e);
+    }
+  }
+}
+
+/** The current task's value for a writable key, in the same JSON shape a payload uses. */
+function currentField(t: TaskRecord, key: string): unknown {
+  switch (key) {
+    case "title": return t.title;
+    case "status": return t.status ?? undefined;
+    case "priority": return t.priority ?? undefined;
+    case "due": return cellToTaskField("due", t.due);
+    case "scheduled": return cellToTaskField("scheduled", t.scheduled);
+    case "tags": return t.tags;
+    case "contexts": return t.contexts;
+    case "projects": return t.projects;
+    case "timeEstimate": return t.timeEstimate ?? undefined;
+    case "blockedBy": return cellToTaskField("blockedBy", t.blockedBy);
+    default: return t.user[key];
   }
 }

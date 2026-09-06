@@ -266,3 +266,105 @@ export function parseStats(text: string): TaskStats {
   const d = (unwrap(text) ?? {}) as Record<string, unknown>;
   return { total: num(d.total), completed: num(d.completed), active: num(d.active), overdue: num(d.overdue), archived: num(d.archived) };
 }
+
+// ─── Write Tasks (F6): rows → API payloads + the plan frame ───────────────────────
+
+/** The API's task fields a row may set; `path` picks the row's task (PUT), never a field. */
+export const WRITABLE_TASK_KEYS = [
+  "title", "details", "status", "priority", "due", "scheduled", "tags", "contexts", "projects",
+  "recurrence", "recurrence_anchor", "timeEstimate", "blockedBy",
+] as const;
+const WRITABLE = new Set<string>(WRITABLE_TASK_KEYS);
+const DATE_KEYS = new Set(["due", "scheduled"]);
+const LIST_KEYS = new Set(["tags", "contexts", "projects"]);
+
+function serialToIsoDateOnly(serial: number): string {
+  return serialToIsoDate(serial);
+}
+
+/** A cube/frame cell → the API's JSON for `key`: dates from serials, lists as arrays
+ *  (a comma-separated text splits), blockedBy names as FINISHTOSTART links, numbers as
+ *  minutes, everything else as its text. Blank → undefined (the key is not sent). */
+export function cellToTaskField(key: string, cell: unknown): unknown {
+  if (cell == null || cell === "") return undefined;
+  if (DATE_KEYS.has(key)) {
+    if (typeof cell === "number") return serialToIsoDateOnly(cell);
+    const n = isoToSerial(String(cell));
+    return n == null ? undefined : serialToIsoDateOnly(n);
+  }
+  const asList = (v: unknown): string[] =>
+    Array.isArray(v) ? v.map((x) => String(x ?? "").trim()).filter(Boolean)
+      : String(v).split(/[,;]/).map((x) => x.trim()).filter(Boolean);
+  if (LIST_KEYS.has(key)) return asList(cell);
+  if (key === "blockedBy") return asList(cell).map((name) => ({ uid: `[[${linkName(name) || name}]]`, reltype: "FINISHTOSTART" }));
+  if (key === "timeEstimate") { const n = typeof cell === "number" ? cell : Number(cell); return Number.isFinite(n) ? n : undefined; }
+  if (typeof cell === "object") return undefined; // a nested table has no API field
+  return typeof cell === "string" ? cell : String(cell);
+}
+
+export interface TaskWritePlanRow {
+  path: string;
+  title: string;
+  /** create (no path) · update (path) · skip (nothing to send) */
+  action: "create" | "update" | "skip";
+  /** The API payload for this row (the fields that will be sent). */
+  payload: Record<string, unknown>;
+}
+
+/** One row of a cube/frame (column name → cell) → its write plan. `keys` limits the
+ *  columns sent ("" = every writable column present); `path` always addresses, never
+ *  writes; a create needs a title. */
+export function planTaskRow(row: Record<string, unknown>, keys: readonly string[]): TaskWritePlanRow {
+  const path = typeof row.path === "string" ? row.path.trim() : "";
+  const wanted = keys.length ? keys.filter((k) => WRITABLE.has(k)) : Object.keys(row).filter((k) => WRITABLE.has(k));
+  const payload: Record<string, unknown> = {};
+  for (const k of wanted) {
+    const v = cellToTaskField(k, row[k]);
+    if (v !== undefined) payload[k] = v;
+  }
+  const title = typeof payload.title === "string" ? payload.title : (typeof row.title === "string" ? row.title : "");
+  const sent = Object.keys(payload).length;
+  const action: TaskWritePlanRow["action"] = path ? (sent ? "update" : "skip") : (title.trim() ? "create" : "skip");
+  if (action === "create" && payload.title === undefined) payload.title = title;
+  return { path, title, action, payload };
+}
+
+/** Every row of a cube (or a frame widened to one) → its plan. */
+export function planTaskWrites(cube: CubeValue, keys: readonly string[]): TaskWritePlanRow[] {
+  const rows = cube.columns.reduce((m, c) => Math.max(m, c.cells.length), 0);
+  const out: TaskWritePlanRow[] = [];
+  for (let i = 0; i < rows; i++) {
+    const row: Record<string, unknown> = {};
+    for (const c of cube.columns) row[c.name] = c.cells[i] ?? null;
+    out.push(planTaskRow(row, keys));
+  }
+  return out;
+}
+
+/** The `plan` frame a Write Tasks card emits: path · title · action · fields. */
+export function taskPlanFrame(plan: readonly TaskWritePlanRow[], resolved?: ReadonlyMap<number, string>): FrameValue {
+  return { __frame: true, columns: [
+    { name: "path", type: "string", values: plan.map((r) => r.path || null) },
+    { name: "title", type: "string", values: plan.map((r) => r.title || null) },
+    { name: "action", type: "string", values: plan.map((r, i) => resolved?.get(i) ?? r.action) },
+    { name: "fields", type: "string", values: plan.map((r) => Object.keys(r.payload).join(", ") || null) },
+  ] };
+}
+
+/** `PUT /api/tasks/:id` — the id is the URL-encoded task path. */
+export function taskUrl(url: string, path: string): string {
+  return `${base(url)}/api/tasks/${encodeURIComponent(path)}`;
+}
+
+export function createTaskUrl(url: string): string {
+  return `${base(url)}/api/tasks`;
+}
+
+/** Parse the plugin's reply to a create/update: the task's path when present. */
+export function parseWrittenTaskPath(text: string): string | null {
+  try {
+    const d = unwrap(text) as { path?: unknown; task?: { path?: unknown } } | null;
+    const p = d?.path ?? d?.task?.path;
+    return typeof p === "string" ? p : null;
+  } catch { return null; }
+}
