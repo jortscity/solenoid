@@ -33,6 +33,7 @@
 }
 .sol-import__row {
   display: block;
+  flex: none; /* flex-column child with overflow:hidden would shrink to 0 under a long list */
   width: 100%;
   text-align: left;
   padding: 4px 7px;
