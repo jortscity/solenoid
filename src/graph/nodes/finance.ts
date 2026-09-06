@@ -261,78 +261,6 @@ export class TvmNode extends EquationNode {
   }
 }
 
-// ─── IPMT / PPMT ──────────────────────────────────────────────────────────────
-export type IpmtPpmtOp = "ipmt" | "ppmt";
-
-export const IPMT_PPMT_OP_META = {
-  ipmt: { label: "IPMT", description: "Interest portion of a periodic payment. Excel: `IPMT`." },
-  ppmt: { label: "PPMT", description: "Principal portion of a periodic payment. Excel: `PPMT`." },
-} satisfies Record<IpmtPpmtOp, { label: string; description: string }>;
-
-export class IpmtPpmtNode extends ClassicPreset.Node {
-  static socketDocs: Record<string, string> = {
-    rate: "The rate for a single period. Divide an annual rate by the number of periods per year.",
-    per: "The single period to report, counted from 1.",
-  };
-
-  label: string;
-  op: IpmtPpmtOp;
-  paymentTiming: PaymentTiming;
-  cachedResult: number | null = null;
-  literals: Record<string, number> = { rate: 0.05, per: 1, nper: 12, pv: 1000, fv: 0 };
-  width = 180; height = 340;
-
-  constructor(init?: { label?: string; op?: IpmtPpmtOp; paymentTiming?: PaymentTiming }) {
-    super("IpmtPpmt");
-    this.label         = init?.label         ?? "";
-    this.op            = init?.op            ?? "ipmt";
-    this.paymentTiming = init?.paymentTiming ?? "end";
-    this.addInput("rate", numIn("Rate"));
-    this.addInput("per",  numIn("Period"));
-    this.addInput("nper", numIn("Nper"));
-    this.addInput("pv",   numIn("PV"));
-    this.addInput("fv",   numIn("FV"));
-    this.addOutput("result", numOut("Result"));
-  }
-
-  data(inputs: { rate?: number[]; per?: number[]; nper?: number[]; pv?: number[]; fv?: number[] }) {
-    const rate = readInput(inputs.rate, this.literals.rate ?? 0);
-    const per  = readInput(inputs.per, this.literals.per ?? 1);
-    const nper = readInput(inputs.nper, this.literals.nper ?? 0);
-    const pv   = readInput(inputs.pv, this.literals.pv ?? 0);
-    const fv   = readInput(inputs.fv, this.literals.fv ?? 0);
-    if (rate === null || per === null || nper === null || pv === null || fv === null) { this.cachedResult = null; return { result: null }; }
-    const type = this.paymentTiming === "beg" ? 1 : 0;
-
-    let result: number | null = null;
-
-    let pmt: number;
-    if (Math.abs(rate) < 1e-12) {
-      pmt = nper !== 0 ? -(pv + fv) / nper : 0;
-    } else {
-      const rN = Math.pow(1 + rate, nper);
-      pmt = -(pv * rN + fv) * rate / ((1 + rate * type) * (rN - 1));
-    }
-
-    if (Number.isFinite(pmt)) {
-      // The rate≈0 case stays hand-rolled (trivially 0 interest either way).
-      let ipmt: number;
-      if (Math.abs(rate) < 1e-12) {
-        ipmt = 0;
-      } else {
-        ipmt = resolveExcelFunction("IPMT")!(rate, per, nper, pv, fv, type) as number;
-      }
-      if (Number.isFinite(ipmt)) {
-        result = this.op === "ipmt" ? ipmt : pmt - ipmt;
-      }
-    }
-
-    if (result !== null && !Number.isFinite(result)) result = null;
-    this.cachedResult = result;
-    return { result };
-  }
-}
-
 // ─── NPV ──────────────────────────────────────────────────────────────────────
 export const NPV_META = {
   label: "NPV",
@@ -676,90 +604,6 @@ export class DollarNode extends ClassicPreset.Node {
 
 
 
-// ─── CUMIPMT / CUMPRINC ───────────────────────────────────────────────────────
-export type CumPmtOp = "cumipmt" | "cumprinc";
-
-export const CUM_PMT_OP_META = {
-  cumipmt:  { label: "CUMIPMT",  description: "Cumulative interest paid between two periods. Excel: `CUMIPMT`." },
-  cumprinc: { label: "CUMPRINC", description: "Cumulative principal paid between two periods. Excel: `CUMPRINC`." },
-} satisfies Record<CumPmtOp, { label: string; description: string }>;
-
-export class CumPmtNode extends ClassicPreset.Node {
-  static socketDocs: Record<string, string> = {
-    rate: "The rate for a single period. Divide an annual rate by the number of periods per year.",
-    end: "The sum includes both the start and end periods.",
-  };
-
-  label: string;
-  op: CumPmtOp;
-  paymentTiming: PaymentTiming;
-  cachedResult: number | null = null;
-  literals: Record<string, number> = { rate: 0.05, nper: 12, pv: 1000, start: 1, end: 12 };
-  width = 180; height = 340;
-
-  constructor(init?: { label?: string; op?: CumPmtOp; paymentTiming?: PaymentTiming }) {
-    super("CumPmt");
-    this.label         = init?.label         ?? "";
-    this.op            = init?.op            ?? "cumipmt";
-    this.paymentTiming = init?.paymentTiming ?? "end";
-    this.addInput("rate",  numIn("Rate"));
-    this.addInput("nper",  numIn("Nper"));
-    this.addInput("pv",    numIn("PV"));
-    this.addInput("start", numIn("Start period"));
-    this.addInput("end",   numIn("End period"));
-    this.addOutput("result", numOut("Result"));
-  }
-
-  data(inputs: { rate?: number[]; nper?: number[]; pv?: number[]; start?: number[]; end?: number[] }) {
-    const rate  = readInput(inputs.rate, this.literals.rate ?? 0);
-    const nper  = readInput(inputs.nper, this.literals.nper ?? 0);
-    const pv    = readInput(inputs.pv, this.literals.pv ?? 0);
-    const startRaw = readInput(inputs.start, this.literals.start ?? 1);
-    const endRaw   = readInput(inputs.end, this.literals.end ?? 1);
-    if (rate === null || nper === null || pv === null || startRaw === null || endRaw === null) {
-      this.cachedResult = null; return { result: null };
-    }
-    const start = Math.round(startRaw);
-    const end   = Math.round(endRaw);
-    const type  = this.paymentTiming === "beg" ? 1 : 0;
-
-    let result: number | null = null;
-
-    if (start >= 1 && end >= start && nper > 0) {
-      let pmt: number;
-      if (Math.abs(rate) < 1e-12) {
-        pmt = nper !== 0 ? -(pv + 0) / nper : 0; // fv = 0 assumed
-      } else {
-        const rN = Math.pow(1 + rate, nper);
-        pmt = -(pv * rN) * rate / ((1 + rate * type) * (rN - 1));
-      }
-
-      if (Number.isFinite(pmt)) {
-        let cumSum = 0;
-        for (let per = start; per <= end; per++) {
-          let ipmt: number;
-          if (Math.abs(rate) < 1e-12) {
-            ipmt = 0;
-          } else {
-            const rPer1 = Math.pow(1 + rate, per - 1);
-            const B = pv * rPer1 + pmt * (1 + rate * type) * (rPer1 - 1) / rate;
-            if (type === 0) {
-              ipmt = B * rate;
-            } else {
-              ipmt = (B - pmt) * rate;
-            }
-          }
-          cumSum += this.op === "cumipmt" ? ipmt : pmt - ipmt;
-        }
-        result = Number.isFinite(cumSum) ? cumSum : null;
-      }
-    }
-
-    this.cachedResult = result;
-    return { result };
-  }
-}
-
 // ─── Spec-table op cards ──────────────────────────────────────────────────────
 // A multi-op card whose sockets follow a per-op key table (Discount Security, Accrued
 // Interest, Bond Pricing): the switch keeps the inputs both ops share (their cables and
@@ -1026,6 +870,160 @@ export class AccruedInterestNode extends ClassicPreset.Node {
     } else {
       result = accrintM(is, ss, rate, par, basis);
     }
+    this.cachedResult = result;
+    return { result };
+  }
+}
+
+// ─── Payment breakdown: ONE card ─────────────────────────────────────────────
+
+export type PaymentBreakdownOp = "ipmt" | "ppmt" | "cumipmt" | "cumprinc";
+
+export const PAYMENT_BREAKDOWN_OP_META: Record<PaymentBreakdownOp, { label: string; description: string }> = {
+  ipmt:     { label: "IPMT",     description: "Interest portion of a periodic payment. Excel: `IPMT`." },
+  ppmt:     { label: "PPMT",     description: "Principal portion of a periodic payment. Excel: `PPMT`." },
+  cumipmt:  { label: "CUMIPMT",  description: "Cumulative interest paid between two periods. Excel: `CUMIPMT`." },
+  cumprinc: { label: "CUMPRINC", description: "Cumulative principal paid between two periods. Excel: `CUMPRINC`." },
+};
+
+// The single-period ops (IPMT/PPMT) take per/fv; the range ops (CUMIPMT/CUMPRINC) take
+// start/end. Switching the op across that boundary drives the socket reshape.
+const PAYMENT_BREAKDOWN_SINGLE_KEYS = ["rate", "per", "nper", "pv", "fv"];
+const PAYMENT_BREAKDOWN_RANGE_KEYS  = ["rate", "nper", "pv", "start", "end"];
+function paymentBreakdownKeys(op: PaymentBreakdownOp): string[] {
+  return op === "ipmt" || op === "ppmt" ? [...PAYMENT_BREAKDOWN_SINGLE_KEYS] : [...PAYMENT_BREAKDOWN_RANGE_KEYS];
+}
+const PAYMENT_BREAKDOWN_INPUTS: Record<string, () => ClassicPreset.Input<ClassicPreset.Socket>> = {
+  rate:  () => numIn("Rate"),
+  per:   () => numIn("Period"),
+  nper:  () => numIn("Nper"),
+  pv:    () => numIn("PV"),
+  fv:    () => numIn("FV"),
+  start: () => numIn("Start period"),
+  end:   () => numIn("End period"),
+};
+
+/** IPMT / PPMT (one period) and CUMIPMT / CUMPRINC (a range) on one card. The op switch
+ *  flips the pair and reshapes the sockets; the shared rate/nper/pv keep their cables.
+ *  IPMT/PPMT math is verbatim from the former IpmtPpmt node; CUMIPMT/CUMPRINC come from the
+ *  former CumPmt node with the interest sign corrected to Excel's convention. */
+export class PaymentBreakdownNode extends ClassicPreset.Node {
+  static socketDocs: Record<string, string> = {
+    rate: "The rate for a single period. Divide an annual rate by the number of periods per year.",
+    per: "The single period to report, counted from 1.",
+    end: "The sum includes both the start and end periods.",
+  };
+
+  label: string;
+  op: PaymentBreakdownOp;
+  paymentTiming: PaymentTiming;
+  cachedResult: number | null = null;
+  literals: Record<string, number> = { rate: 0.05, per: 1, nper: 12, pv: 1000, fv: 0, start: 1, end: 12 };
+  width = 180; height = 367;
+
+  constructor(init?: { label?: string; op?: PaymentBreakdownOp; paymentTiming?: PaymentTiming }) {
+    super("PaymentBreakdown");
+    this.label         = init?.label         ?? "";
+    this.op            = init?.op && init.op in PAYMENT_BREAKDOWN_OP_META ? init.op : "ipmt";
+    this.paymentTiming = init?.paymentTiming ?? "end";
+    for (const k of paymentBreakdownKeys(this.op)) this.addInput(k, PAYMENT_BREAKDOWN_INPUTS[k]());
+    this.addOutput("result", numOut("Result"));
+  }
+
+  /** Callers on a live graph prune these BEFORE calling setOp (onePrunePath). */
+  keysDroppedBySwitch(next: PaymentBreakdownOp): string[] {
+    return keysDroppedBy(paymentBreakdownKeys(this.op), paymentBreakdownKeys(next));
+  }
+
+  setOp(next: PaymentBreakdownOp): void {
+    if (next === this.op) return;
+    reshapeInputs(this, paymentBreakdownKeys(next), (k) => PAYMENT_BREAKDOWN_INPUTS[k]());
+    this.op = next;
+  }
+
+  data(inputs: { rate?: number[]; per?: number[]; nper?: number[]; pv?: number[]; fv?: number[]; start?: number[]; end?: number[] }) {
+    if (this.op === "ipmt" || this.op === "ppmt") {
+      // VERBATIM from the former IpmtPpmtNode.data().
+      const rate = readInput(inputs.rate, this.literals.rate ?? 0);
+      const per  = readInput(inputs.per, this.literals.per ?? 1);
+      const nper = readInput(inputs.nper, this.literals.nper ?? 0);
+      const pv   = readInput(inputs.pv, this.literals.pv ?? 0);
+      const fv   = readInput(inputs.fv, this.literals.fv ?? 0);
+      if (rate === null || per === null || nper === null || pv === null || fv === null) { this.cachedResult = null; return { result: null }; }
+      const type = this.paymentTiming === "beg" ? 1 : 0;
+
+      let result: number | null = null;
+
+      let pmt: number;
+      if (Math.abs(rate) < 1e-12) {
+        pmt = nper !== 0 ? -(pv + fv) / nper : 0;
+      } else {
+        const rN = Math.pow(1 + rate, nper);
+        pmt = -(pv * rN + fv) * rate / ((1 + rate * type) * (rN - 1));
+      }
+
+      if (Number.isFinite(pmt)) {
+        // The rate≈0 case stays hand-rolled (trivially 0 interest either way).
+        let ipmt: number;
+        if (Math.abs(rate) < 1e-12) {
+          ipmt = 0;
+        } else {
+          ipmt = resolveExcelFunction("IPMT")!(rate, per, nper, pv, fv, type) as number;
+        }
+        if (Number.isFinite(ipmt)) {
+          result = this.op === "ipmt" ? ipmt : pmt - ipmt;
+        }
+      }
+
+      if (result !== null && !Number.isFinite(result)) result = null;
+      this.cachedResult = result;
+      return { result };
+    }
+
+    // From the former CumPmtNode.data(), with the interest SIGN corrected to Excel's
+    // convention (the old node summed +balance·rate; Excel's IPMT/CUMIPMT are negative for
+    // a positive PV). CUMIPMT(0.05,12,1000,1,12) = -353.90, CUMPRINC = -1000.
+    const rate  = readInput(inputs.rate, this.literals.rate ?? 0);
+    const nper  = readInput(inputs.nper, this.literals.nper ?? 0);
+    const pv    = readInput(inputs.pv, this.literals.pv ?? 0);
+    const startRaw = readInput(inputs.start, this.literals.start ?? 1);
+    const endRaw   = readInput(inputs.end, this.literals.end ?? 1);
+    if (rate === null || nper === null || pv === null || startRaw === null || endRaw === null) {
+      this.cachedResult = null; return { result: null };
+    }
+    const start = Math.round(startRaw);
+    const end   = Math.round(endRaw);
+    const type  = this.paymentTiming === "beg" ? 1 : 0;
+
+    let result: number | null = null;
+
+    if (start >= 1 && end >= start && nper > 0) {
+      let pmt: number;
+      if (Math.abs(rate) < 1e-12) {
+        pmt = nper !== 0 ? -(pv + 0) / nper : 0; // fv = 0 assumed
+      } else {
+        const rN = Math.pow(1 + rate, nper);
+        pmt = -(pv * rN) * rate / ((1 + rate * type) * (rN - 1));
+      }
+
+      if (Number.isFinite(pmt)) {
+        let cumSum = 0;
+        for (let per = start; per <= end; per++) {
+          let ipmt: number;
+          if (Math.abs(rate) < 1e-12) {
+            ipmt = 0;
+          } else {
+            const rPer1 = Math.pow(1 + rate, per - 1);
+            const B = pv * rPer1 + pmt * (1 + rate * type) * (rPer1 - 1) / rate;
+            // Negated for Excel's sign: interest on a positive-PV loan is an outflow.
+            ipmt = -(type === 0 ? B * rate : (B - pmt) * rate);
+          }
+          cumSum += this.op === "cumipmt" ? ipmt : pmt - ipmt;
+        }
+        result = Number.isFinite(cumSum) ? cumSum : null;
+      }
+    }
+
     this.cachedResult = result;
     return { result };
   }

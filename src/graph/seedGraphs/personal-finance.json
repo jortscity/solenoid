@@ -1093,7 +1093,7 @@
     },
     {
       "id": "cumipmt",
-      "type": "CumPmtNode",
+      "type": "PaymentBreakdownNode",
       "x": 2804,
       "y": 2265,
       "init": {

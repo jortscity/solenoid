@@ -56,6 +56,7 @@ describe("retired finance types load as placeholders", () => {
   const RETIRED = [
     "TBillNode", "SecurityDiscNode", "PriceDiscNode", "PriceMatNode",
     "AccrintNode", "AccrintMNode", "BondPriceNode", "OddCouponNode",
+    "IpmtPpmtNode", "CumPmtNode",
   ];
 
   it("are absent from the ctor registry, so old saves fall to the placeholder branch", () => {
@@ -67,7 +68,7 @@ describe("retired finance types load as placeholders", () => {
 
   it("register their one-card replacements instead", () => {
     const reg = ctorRegistry();
-    for (const name of ["DiscountSecurityNode", "AccruedInterestNode", "BondPricingNode"]) {
+    for (const name of ["DiscountSecurityNode", "AccruedInterestNode", "BondPricingNode", "PaymentBreakdownNode"]) {
       expect(reg.has(name), `${name} must be registered`).toBe(true);
     }
   });

@@ -87,8 +87,6 @@ export const NODE_EXCEL: Record<string, ExcelEquiv[]> = {
   "coupon-couppcd": [{ excel: "COUPPCD", syntax: "=COUPPCD(settle,maturity,freq)", parity: false, note: "Previous coupon date on or before settlement, as a date serial; frequency 1/2/4." }],
   "cov-pop": [{ excel: "COVARIANCE.P", syntax: "=COVARIANCE.P(x, y)", parity: true }],
   "cov-samp": [{ excel: "COVARIANCE.S", syntax: "=COVARIANCE.S(x, y)", parity: true }],
-  "cumpmt-cumipmt": [{ excel: "CUMIPMT", syntax: "=CUMIPMT(rate, nper, pv, st, end, type)", parity: true }],
-  "cumpmt-cumprinc": [{ excel: "CUMPRINC", syntax: "=CUMPRINC(rate, nper, pv, st, end, type)", parity: true }],
   "cx-binary-div": [{ excel: "IMDIV", syntax: "=IMDIV(z1, z2)", parity: false }],
   "cx-binary-product": [{ excel: "IMPRODUCT", syntax: "=IMPRODUCT(z1, z2)", parity: false }],
   "cx-binary-sub": [{ excel: "IMSUB", syntax: "=IMSUB(z1, z2)", parity: false }],
@@ -219,8 +217,12 @@ export const NODE_EXCEL: Record<string, ExcelEquiv[]> = {
   "iferror": [{ excel: "IFERROR", syntax: "=IFERROR(v, fallback)", parity: true }],
   "ifna": [{ excel: "IFNA", syntax: "=IFNA(v, fallback)", parity: true }],
   "ifs": [{ excel: "IFS", syntax: "=IFS(c1, v1, c2, v2, ...)", parity: false, note: "Fixed 3 conditions; Excel is variadic" }],
-  "ipmt-ipmt": [{ excel: "IPMT", syntax: "=IPMT(rate, per, nper, pv)", parity: true }],
-  "ipmt-ppmt": [{ excel: "PPMT", syntax: "=PPMT(rate, per, nper, pv)", parity: true }],
+  "payment-breakdown": [
+    { excel: "IPMT", syntax: "=IPMT(rate, per, nper, pv)", parity: true },
+    { excel: "PPMT", syntax: "=PPMT(rate, per, nper, pv)", parity: true },
+    { excel: "CUMIPMT", syntax: "=CUMIPMT(rate, nper, pv, st, end, type)", parity: true },
+    { excel: "CUMPRINC", syntax: "=CUMPRINC(rate, nper, pv, st, end, type)", parity: true },
+  ],
   "fin-effective-rate": [
     { excel: "EFFECT", syntax: "=EFFECT(rate, npery)", parity: true, note: "One Equation node: wire nom + npery, read eff" },
     { excel: "NOMINAL", syntax: "=NOMINAL(eff_rate, npery)", parity: true, note: "Same node the other way: wire eff + npery, read nom" },

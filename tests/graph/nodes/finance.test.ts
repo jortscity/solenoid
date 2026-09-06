@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   TvmNode,
-  IpmtPpmtNode,
+  PaymentBreakdownNode,
   IspmtNode,
   DiscountSecurityNode,
   NpvNode,
@@ -111,35 +111,61 @@ describe("Compound Growth / Effective Rate presets", () => {
   });
 });
 
-describe("IPMT / PPMT", () => {
+describe("Payment Breakdown (IPMT / PPMT / CUMIPMT / CUMPRINC)", () => {
   // =IPMT(0.05, 1, 12, 1000) = -50.00, =PPMT(0.05, 1, 12, 1000) = -62.83
   it("IPMT period 1 is the first-period interest, sharing PMT's sign", () => {
-    const r = new IpmtPpmtNode({ op: "ipmt" }).data({ rate: [0.05], per: [1], nper: [12], pv: [1000], fv: [0] });
+    const r = new PaymentBreakdownNode({ op: "ipmt" }).data({ rate: [0.05], per: [1], nper: [12], pv: [1000], fv: [0] });
     expect(r.result).toBeCloseTo(-50, 2);
   });
 
   it("IPMT period 2 matches Excel", () => {
-    const r = new IpmtPpmtNode({ op: "ipmt" }).data({ rate: [0.05], per: [2], nper: [12], pv: [1000], fv: [0] });
+    const r = new PaymentBreakdownNode({ op: "ipmt" }).data({ rate: [0.05], per: [2], nper: [12], pv: [1000], fv: [0] });
     expect(r.result).toBeCloseTo(-46.86, 2);
   });
 
   it("PPMT period 1 matches Excel", () => {
-    const r = new IpmtPpmtNode({ op: "ppmt" }).data({ rate: [0.05], per: [1], nper: [12], pv: [1000], fv: [0] });
+    const r = new PaymentBreakdownNode({ op: "ppmt" }).data({ rate: [0.05], per: [1], nper: [12], pv: [1000], fv: [0] });
     expect(r.result).toBeCloseTo(-62.83, 2);
   });
 
   it("annuity-due IPMT is zero in period 1 (payment is up front)", () => {
-    const r = new IpmtPpmtNode({ op: "ipmt", paymentTiming: "beg" })
+    const r = new PaymentBreakdownNode({ op: "ipmt", paymentTiming: "beg" })
       .data({ rate: [0.05], per: [1], nper: [12], pv: [1000], fv: [0] });
     expect(r.result).toBeCloseTo(0, 9);
   });
 
   it("IPMT + PPMT = PMT for the period", () => {
     const args = { rate: [0.05], per: [3], nper: [12], pv: [1000], fv: [0] };
-    const ipmt = new IpmtPpmtNode({ op: "ipmt" }).data(args).result!;
-    const ppmt = new IpmtPpmtNode({ op: "ppmt" }).data(args).result!;
+    const ipmt = new PaymentBreakdownNode({ op: "ipmt" }).data(args).result!;
+    const ppmt = new PaymentBreakdownNode({ op: "ppmt" }).data(args).result!;
     const pmt = new TvmNode().data({ rate: [0.05], nper: [12], pv: [1000], fv: [0] }).pmt as number;
     expect(ipmt + ppmt).toBeCloseTo(pmt, 6);
+  });
+
+  // The Range span (CUMIPMT / CUMPRINC) reads rate/nper/pv/start/end.
+  const cumArgs = { rate: [0.05], nper: [12], pv: [1000], start: [1], end: [12] };
+
+  // =CUMIPMT(0.05,12,1000,1,12) = -353.90, =CUMPRINC(0.05,12,1000,1,12) = -1000 (Excel).
+  it("CUMIPMT equals the sum of each period's IPMT and matches Excel", () => {
+    const cum = new PaymentBreakdownNode({ op: "cumipmt" }).data(cumArgs).result!;
+    let sum = 0;
+    for (let per = 1; per <= 12; per++) {
+      sum += new PaymentBreakdownNode({ op: "ipmt" }).data({ rate: [0.05], per: [per], nper: [12], pv: [1000], fv: [0] }).result!;
+    }
+    expect(cum).toBeCloseTo(sum, 6);
+    expect(cum).toBeCloseTo(-353.90, 2);
+  });
+
+  it("CUMPRINC repays the whole principal over the full term (Excel -1000)", () => {
+    const cum = new PaymentBreakdownNode({ op: "cumprinc" }).data(cumArgs).result!;
+    expect(cum).toBeCloseTo(-1000, 6);
+  });
+
+  it("CUMIPMT + CUMPRINC over all periods equals total payments", () => {
+    const ci = new PaymentBreakdownNode({ op: "cumipmt" }).data(cumArgs).result!;
+    const cp = new PaymentBreakdownNode({ op: "cumprinc" }).data(cumArgs).result!;
+    const pmt = new TvmNode().data({ rate: [0.05], nper: [12], pv: [1000], fv: [0] }).pmt as number;
+    expect(ci + cp).toBeCloseTo(pmt * 12, 6);
   });
 });
 
