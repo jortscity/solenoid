@@ -119,6 +119,7 @@ describe("dateAmbiguitySurfaces — a value-carrying text→date conversion keep
     "components/TablePopup.tsx": "date-picker seed + CSV import, both best-effort UI with no error channel",
     "weatherProvider.ts": "Open-Meteo daily.time is machine ISO YYYY-MM-DD — never ambiguous; a bad row is a blank date cell",
     "holidaysProvider.ts": "Nager.Date PublicHolidays.date is machine ISO YYYY-MM-DD — never ambiguous; an undated row is dropped",
+    "fxProvider.ts": "Frankfurter's date is machine ISO YYYY-MM-DD — never ambiguous; a missing date is NaN",
   };
 
   it("no new file flattens #AMBIGUOUS! away without a sanction", () => {

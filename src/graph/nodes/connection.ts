@@ -1,8 +1,9 @@
 import { ClassicPreset } from "rete";
-import { frameOut, strListOut, strIn, numIn, numOut, strOut, dateListOut, readInput } from "./shared";
+import { frameOut, strListOut, strIn, numIn, numOut, strOut, dateOut, dateListOut, readInput } from "./shared";
 import { geocodeUrl, parseGeocode, pickGeocodeMatch, type GeocodeMatch } from "../geocodeProvider";
 import { weatherUrl, parseWeather, type TempUnit, type WeatherResult } from "../weatherProvider";
 import { holidaysUrl, parseHolidays, filterHolidays, holidaysFrame, daysToNextHoliday, type Holiday } from "../holidaysProvider";
+import { fxLatestUrl, parseFxRate, type FxRate } from "../fxProvider";
 import { applyFcUnit } from "../unitBridge";
 import { type Shape } from "../frameShape";
 import { connectionStore, scheduleConnectionRecalc, requestNetwork } from "../connectionStore";
@@ -608,6 +609,84 @@ export class HolidaysNode extends ClassicPreset.Node {
       connectionStore.setState(this.id, this.cached.length === 0
         ? { status: "error", message: "No holidays" }
         : { status: "ok", rows: this.cached.length, cols: 3, fetchedAt: Date.now() });
+    } catch (e) {
+      this.cached = null;
+      connectionStore.setState(this.id, { status: "error", message: e instanceof Error ? e.message : String(e) });
+    }
+  }
+}
+
+// ─── CURRENCY / FX (Frankfurter: convert an amount, forward the target currency) ──
+// The #1 googled conversion. Currency is a unit in the FC model, so the Converted output
+// is AUTHORED with the target currency via applyFcUnit — the same value-side path Convert
+// uses (firstClassUnits) — and every code is registered with the display bridge in
+// fxProvider. Amount applies per compute (no re-fetch); From/To key the fetch.
+export class FxNode extends ClassicPreset.Node {
+  static socketDocs: Record<string, string> = {
+    amount: "How much, in the From currency.",
+    from: "The currency to convert out of.",
+    to: "The currency to convert into.",
+    converted: "The amount in the To currency, carrying that currency downstream.",
+    rate: "Units of To per one From, on the as-of date.",
+    asof: "The date these ECB reference rates are from.",
+  };
+  label: string;
+  literals: Record<string, number> = { amount: 1 };
+  stringLiterals: Record<string, string> = { from: "", to: "" };
+  /** Minutes, 0 = off — the component runs the timer. */
+  refreshMinutes: number;
+  width = 240; height = 250;
+  /** Read by the component's output rows; never persisted. */
+  cached: FxRate | null = null;
+  private _lastKey: string | undefined;
+
+  constructor(init?: { label?: string; refreshMinutes?: number }) {
+    super("Fx");
+    this.label = init?.label ?? "Currency";
+    this.refreshMinutes = init?.refreshMinutes ?? 0;
+    this.addInput("amount", numIn("Amount"));
+    this.addInput("from", strIn("From"));
+    this.addInput("to", strIn("To"));
+    this.addOutput("converted", numOut("Converted"));
+    this.addOutput("rate", numOut("Rate"));
+    this.addOutput("asof", dateOut("As of"));
+  }
+
+  data(inputs: { amount?: number[]; from?: string[]; to?: string[] }): { converted: unknown; rate: number | null; asof: number | null } {
+    const amount = readInput(inputs.amount, this.literals.amount ?? 1);
+    const fromRaw = readInput(inputs.from, this.stringLiterals.from ?? "");
+    const toRaw = readInput(inputs.to, this.stringLiterals.to ?? "");
+    const from = (typeof fromRaw === "string" ? fromRaw : "").trim().toUpperCase();
+    const to = (typeof toRaw === "string" ? toRaw : "").trim().toUpperCase();
+    const have = from !== "" && to !== "";
+    const key = connectionStore.key(this.id, have ? `${from},${to}` : "");
+    if (key !== this._lastKey) {
+      if (!have) {
+        this._lastKey = key;
+        this.cached = null;
+        connectionStore.setState(this.id, { status: "idle" });
+      } else if (requestNetwork(this.id)) {
+        this._lastKey = key;
+        void this.fetchRate(from, to).then(() => scheduleConnectionRecalc());
+      }
+    }
+    const rate = this.cached?.rate ?? null;
+    const converted = rate != null && typeof amount === "number" ? amount * rate : null;
+    // Author the target currency on the value, the same path Convert takes (firstClassUnits).
+    const tagged = converted != null ? applyFcUnit(converted, to.toLowerCase()) : null;
+    const asof = this.cached && Number.isFinite(this.cached.serial) ? this.cached.serial : null;
+    return { converted: tagged, rate, asof };
+  }
+
+  private async fetchRate(from: string, to: string): Promise<void> {
+    connectionStore.setState(this.id, { status: "loading" });
+    try {
+      const { text } = await fetchText(fxLatestUrl(from, to));
+      const parsed = parseFxRate(text, to);
+      this.cached = parsed;
+      connectionStore.setState(this.id, parsed.rate == null
+        ? { status: "error", message: `No ${from}→${to} rate` }
+        : { status: "ok", rows: 1, cols: 1, fetchedAt: Date.now() });
     } catch (e) {
       this.cached = null;
       connectionStore.setState(this.id, { status: "error", message: e instanceof Error ? e.message : String(e) });

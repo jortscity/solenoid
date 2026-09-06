@@ -9,6 +9,7 @@ import type {
   GeocodeNode as GeocodeNodeType,
   WeatherNode as WeatherNodeType,
   HolidaysNode as HolidaysNodeType,
+  FxNode as FxNodeType,
 } from "../rete-nodes";
 import { processGraph } from "../process";
 import { connectionStore, refreshConnection, type ConnectionState } from "../connectionStore";
@@ -19,7 +20,7 @@ import { PROVIDER_LIST, getProvider, type ProviderId } from "../dataProviders";
 import { FrameDisplay } from "./FrameDisplay";
 import { LazySelect } from "./LazySelect";
 import { NodeShell, InlineOutputRows, type NodeProps } from "./nodeKit";
-import { InlineInputs } from "./inlineInput";
+import { InlineInputs, useConnectedInputs, useIncomingSources } from "./inlineInput";
 import { MeasuredSocketRow } from "./NodeSocket";
 import { RefreshIcon } from "./RefreshIcon";
 import "./ConnectionNodes.css";
@@ -27,6 +28,7 @@ import { stopDragStart } from "../coarse";
 import { nodeDisplayName } from "../catalogUtils";
 import { pickGeocodeMatch } from "../geocodeProvider";
 import { NAGER_COUNTRIES, filterHolidays, daysToNextHoliday } from "../holidaysProvider";
+import { FX_CURRENCIES } from "../fxProvider";
 import { frameRowCount } from "../frame";
 
 function statusText(s: ConnectionState): string {
@@ -594,6 +596,69 @@ export function HolidaysComponent({ data, emit }: NodeProps<HolidaysNodeType>) {
         node={data}
         emit={emit}
         rows={[{ key: "next", label: "DAYS TO NEXT", value: next }]}
+      />
+    </NodeShell>
+  );
+}
+
+// ─── CURRENCY / FX ─────────────────────────────────────────────────────────────────
+// Amount is a wireable number row; From/To are wireable currency dropdowns (a cable
+// overrides the pick). The Converted socket carries the target currency downstream.
+function CurrencyRow({ data, emit, socketKey, label }: {
+  data: FxNodeType; emit: NodeProps<FxNodeType>["emit"]; socketKey: "from" | "to"; label: string;
+}) {
+  const connected = useConnectedInputs(data.id);
+  const incoming = useIncomingSources(data.id);
+  const wired = connected.has(socketKey);
+  const socket = data.inputs[socketKey]!.socket;
+  return (
+    <MeasuredSocketRow side="input" socketKey={socketKey} nodeId={data.id} emit={emit} payload={socket}>
+      <span className="solenoid-node__io-label">{label}</span>
+      {wired ? (
+        <span className="solenoid-node__io-wired" title="Driven by the incoming cable named here">↩ {incoming.get(socketKey)?.label || "wired"}</span>
+      ) : (
+        <LazySelect
+          className="sol-conn__select"
+          value={data.stringLiterals[socketKey] ?? ""}
+          title={label}
+          onChange={(e) => { data.stringLiterals[socketKey] = e.target.value; void processGraph(); }}
+          {...stopDrag}
+        >
+          <option value="">Pick…</option>
+          {FX_CURRENCIES.map((c) => <option key={c.code} value={c.code}>{c.code} — {c.name}</option>)}
+        </LazySelect>
+      )}
+    </MeasuredSocketRow>
+  );
+}
+
+export function FxComponent({ data, emit }: NodeProps<FxNodeType>) {
+  useSyncExternalStore(connectionStore.subscribe, connectionStore.version); // fill rows when a fetch lands
+  const [minutes, setMinutes] = useState(data.refreshMinutes);
+  useAutoRefresh(data.id, minutes);
+
+  const rate = data.cached?.rate ?? null;
+  // A preview off the typed amount; the socket carries the true (possibly wired) value.
+  const preview = rate != null ? (data.literals.amount ?? 1) * rate : null;
+
+  return (
+    <NodeShell node={data} emit={emit} hideOutputSockets>
+      <InlineInputs node={data} emit={emit} keys={["amount"]} />
+      <CurrencyRow data={data} emit={emit} socketKey="from" label="FROM" />
+      <CurrencyRow data={data} emit={emit} socketKey="to" label="TO" />
+      <div className="sol-conn">
+        <div className="sol-conn__note">ECB reference rates, once per business day.</div>
+        <ConnectionStatusRow nodeId={data.id} onRefresh={() => void refreshConnection(data.id)} />
+        <RefreshIntervalField minutes={minutes} onCommit={(n) => { data.refreshMinutes = n; setMinutes(n); }} />
+      </div>
+      <InlineOutputRows
+        node={data}
+        emit={emit}
+        rows={[
+          { key: "converted", label: `CONVERTED ${data.stringLiterals.to || ""}`.trim(), value: preview },
+          { key: "rate",      label: "RATE",  value: rate },
+          { key: "asof",      label: "AS OF", value: data.cached?.date || null },
+        ]}
       />
     </NodeShell>
   );
