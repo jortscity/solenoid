@@ -16,7 +16,8 @@ import type {
 import { processGraph } from "../process";
 import { connectionStore, refreshConnection, type ConnectionState } from "../connectionStore";
 import { settingsStore } from "../settingsStore";
-import { isDesktop, listLocalFiles, pickFolderDialog, baseNameOf } from "../fileBridge";
+import { isDesktop, listLocalFiles, pickFolderDialog, baseNameOf, openExternal } from "../fileBridge";
+import { obsidianOpenUrl } from "../obsidianLinks";
 import { apiKeyStore } from "../apiKeyStore";
 import { PROVIDER_LIST, getProvider, type ProviderId } from "../dataProviders";
 import { FrameDisplay } from "./FrameDisplay";
@@ -698,6 +699,8 @@ export function VaultFolderComponent({ data, emit }: NodeProps<VaultFolderNodeTy
 
   const cube = data.cached;
   const cols = cube?.columns.map((c) => c.name) ?? [];
+  const firstCell = cube?.columns.find((c) => c.name === "path")?.cells[0];
+  const openUrl = typeof firstCell === "string" ? obsidianOpenUrl(data.vault, firstCell) : null;
 
   return (
     <NodeShell node={data} emit={emit}>
@@ -715,6 +718,18 @@ export function VaultFolderComponent({ data, emit }: NodeProps<VaultFolderNodeTy
                 onClick={(e) => { e.stopPropagation(); void chooseVault(); }}
                 onPointerDown={stopDragStart} onMouseDown={(e) => e.stopPropagation()}
               >Choose…</button>
+              {openUrl && (
+                <button
+                  type="button" className="sol-conn__refresh" title="Open the first note in Obsidian"
+                  onClick={(e) => { e.stopPropagation(); void openExternal(openUrl); }}
+                  onPointerDown={stopDragStart} onMouseDown={(e) => e.stopPropagation()}
+                >
+                  {/* Lucide "external-link" (ISC). */}
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                  </svg>
+                </button>
+              )}
             </div>
             <div className="sol-conn__note">Obsidian vault{data.folder ? ` · ${data.folder}` : ""}</div>
             <input
