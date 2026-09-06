@@ -118,6 +118,7 @@ describe("dateAmbiguitySurfaces — a value-carrying text→date conversion keep
     "frameVerbs.ts": "lookupNeedle parses a lookup value; a bad date lookup just fails to match — no error channel (backlogged)",
     "components/TablePopup.tsx": "date-picker seed + CSV import, both best-effort UI with no error channel",
     "weatherProvider.ts": "Open-Meteo daily.time is machine ISO YYYY-MM-DD — never ambiguous; a bad row is a blank date cell",
+    "holidaysProvider.ts": "Nager.Date PublicHolidays.date is machine ISO YYYY-MM-DD — never ambiguous; an undated row is dropped",
   };
 
   it("no new file flattens #AMBIGUOUS! away without a sanction", () => {

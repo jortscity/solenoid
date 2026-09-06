@@ -1,7 +1,8 @@
 import { ClassicPreset } from "rete";
-import { frameOut, strListOut, strIn, numIn, numOut, strOut, readInput } from "./shared";
+import { frameOut, strListOut, strIn, numIn, numOut, strOut, dateListOut, readInput } from "./shared";
 import { geocodeUrl, parseGeocode, pickGeocodeMatch, type GeocodeMatch } from "../geocodeProvider";
 import { weatherUrl, parseWeather, type TempUnit, type WeatherResult } from "../weatherProvider";
+import { holidaysUrl, parseHolidays, filterHolidays, holidaysFrame, daysToNextHoliday, type Holiday } from "../holidaysProvider";
 import { applyFcUnit } from "../unitBridge";
 import { type Shape } from "../frameShape";
 import { connectionStore, scheduleConnectionRecalc, requestNetwork } from "../connectionStore";
@@ -517,6 +518,96 @@ export class WeatherNode extends ClassicPreset.Node {
       const { text } = await fetchText(weatherUrl(lat, lon, this.unit, this.pastDays, this.forecastDays));
       this.cached = parseWeather(text, this.unit);
       connectionStore.setState(this.id, { status: "ok", rows: frameRowCount(this.cached.daily), cols: this.cached.daily.columns.length, fetchedAt: Date.now() });
+    } catch (e) {
+      this.cached = null;
+      connectionStore.setState(this.id, { status: "error", message: e instanceof Error ? e.message : String(e) });
+    }
+  }
+}
+
+// ─── HOLIDAYS (Nager.Date: a year's public holidays as a frame + a date list) ────
+// A country + year → the year's public holidays. Nager.Date is keyless + CORS-open.
+// The Dates list feeds NETWORKDAYS / WORKDAY straight; the frame reads on a Report;
+// "days to next" drives a dashboard. An optional region keeps only the days that apply
+// in a subdivision. Reuses the WebSource sync-background fetch, so it rides the C2 gate.
+export class HolidaysNode extends ClassicPreset.Node {
+  static socketDocs: Record<string, string> = {
+    frame: "One row per holiday: date, English name, local name.",
+    dates: "Every holiday's date. Skipped by NETWORKDAYS and WORKDAY.",
+    next: "Whole days until the next holiday, counting from today.",
+  };
+  label: string;
+  /** ISO 3166-1 alpha-2 country code (for example US, GB). */
+  country: string;
+  /** Optional subdivision code (for example US-CA); blank = the whole country. */
+  region: string;
+  /** The calendar year; 0 = the current year. */
+  year: number;
+  /** Minutes, 0 = off — the component runs the timer. */
+  refreshMinutes: number;
+  width = 240; height = 250;
+  /** Read by the component's output rows; never persisted. */
+  cached: Holiday[] | null = null;
+  private _lastKey: string | undefined;
+
+  constructor(init?: { label?: string; country?: string; region?: string; year?: number; refreshMinutes?: number }) {
+    super("Holidays");
+    this.label = init?.label ?? "Holidays";
+    this.country = init?.country ?? "";
+    this.region = init?.region ?? "";
+    this.year = init?.year ?? 0;
+    this.refreshMinutes = init?.refreshMinutes ?? 0;
+    this.addOutput("frame", frameOut("Holidays"));
+    this.addOutput("dates", dateListOut("Dates"));
+    this.addOutput("next", numOut("Days to next"));
+  }
+
+  // The frame's columns are FIXED (declareOnce), so downstream pickers know them
+  // before any fetch lands.
+  frameShape(): Shape {
+    return { columns: [
+      { name: "Date", type: "date" }, { name: "Name", type: "string" }, { name: "Local", type: "string" },
+    ] };
+  }
+
+  /** Today as a UTC-midnight Excel serial, matching the date column's convention. */
+  private static todaySerial(): number {
+    const d = new Date();
+    return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000 + 25569;
+  }
+
+  data(): { frame: FrameValue; dates: number[]; next: number | null } {
+    const country = this.country.trim();
+    const year = this.year || new Date().getUTCFullYear();
+    const key = connectionStore.key(this.id, country ? `${country},${year}` : "");
+    if (key !== this._lastKey) {
+      if (country === "") {
+        this._lastKey = key;
+        this.cached = null;
+        connectionStore.setState(this.id, { status: "idle" });
+      } else if (requestNetwork(this.id)) {
+        this._lastKey = key;
+        void this.fetchHolidays(year, country).then(() => scheduleConnectionRecalc());
+      }
+    }
+    // Region is applied per compute (cheap, from the cache) so changing it re-selects
+    // without a re-fetch, mirroring Geocode's pick.
+    const applicable = filterHolidays(this.cached ?? [], this.region);
+    return {
+      frame: holidaysFrame(applicable),
+      dates: applicable.map((h) => h.serial),
+      next: daysToNextHoliday(applicable, HolidaysNode.todaySerial()),
+    };
+  }
+
+  private async fetchHolidays(year: number, country: string): Promise<void> {
+    connectionStore.setState(this.id, { status: "loading" });
+    try {
+      const { text } = await fetchText(holidaysUrl(year, country));
+      this.cached = parseHolidays(text);
+      connectionStore.setState(this.id, this.cached.length === 0
+        ? { status: "error", message: "No holidays" }
+        : { status: "ok", rows: this.cached.length, cols: 3, fetchedAt: Date.now() });
     } catch (e) {
       this.cached = null;
       connectionStore.setState(this.id, { status: "error", message: e instanceof Error ? e.message : String(e) });

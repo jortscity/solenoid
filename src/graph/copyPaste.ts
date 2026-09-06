@@ -89,6 +89,7 @@ export const INIT_FIELD_ORDER = [
   "chip",
   "pickedLabel",
   "pastDays", "forecastDays",
+  "country", "region", "year",
 ] as const;
 
 // Object-valued extras, appended after INIT_FIELD_ORDER in this fixed order.
