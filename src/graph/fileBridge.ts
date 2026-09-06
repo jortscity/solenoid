@@ -112,6 +112,11 @@ export async function statVaultFile(root: string, relPath: string): Promise<{ mt
   }
 }
 
+/** Read an absolute path as text (desktop only). */
+export async function readTextFilePath(path: string): Promise<string> {
+  return readTextFile(path);
+}
+
 /** Temp + rename so a crash mid-write can't destroy the previous good file; falls
  *  back to a direct write when the `.tmp` sibling is outside the granted fs scope. */
 async function writeTextFileAtomic(path: string, content: string): Promise<void> {

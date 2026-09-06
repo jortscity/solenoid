@@ -4,7 +4,6 @@ import { connectionStore, scheduleConnectionRecalc, requestNetwork } from "../co
 import { settingsStore } from "../settingsStore";
 import { apiKeyStore } from "../apiKeyStore";
 import { fetchText } from "../httpBridge";
-import { jsDateToSerial } from "./dateSerial";
 import { cubeFromColumns, isCubeValue, type CubeValue, type FrameValue } from "../frame";
 import { isSolError, type SolError } from "../errorValue";
 import {
@@ -34,7 +33,8 @@ const EMPTY_EVENTS: FrameValue = { __frame: true, columns: [
 ] };
 
 function todaySerial(): number {
-  return Math.floor(jsDateToSerial(new Date()));
+  const d = new Date();
+  return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000 + 25569;
 }
 
 export class TaskNotesNode extends ClassicPreset.Node {
