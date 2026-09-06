@@ -1,6 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
-import type { WriteFileNode as WriteFileNodeType, WriteObsidianNode as WriteObsidianNodeType, WriteTasksNode as WriteTasksNodeType, WriteFormat } from "../rete-nodes";
-import { isDesktop, listVaultFolders, openExternal } from "../fileBridge";
+import type { WriteFileNode as WriteFileNodeType, WriteObsidianNode as WriteObsidianNodeType, WriteTasksNode as WriteTasksNodeType, WritePropertiesNode as WritePropertiesNodeType, WriteFormat } from "../rete-nodes";
+import { isDesktop, listVaultFolders, openExternal, pickFolderDialog, baseNameOf } from "../fileBridge";
 import { obsidianOpenUrl } from "../obsidianLinks";
 import { settingsStore } from "../settingsStore";
 import { documentStore } from "../documentStore";
@@ -362,3 +362,85 @@ export function WriteTasksComponent({ data, emit }: NodeProps<WriteTasksNodeType
   );
 }
 
+
+// ─── WRITE PROPERTIES (a cube → notes' frontmatter) ──────────────────────────────
+// Preview + Armed + Run like Write Tasks; a per-node vault chip; writes only from Run.
+export function WritePropertiesComponent({ data, emit }: NodeProps<WritePropertiesNodeType>) {
+  const [keys, setKeys] = useState(data.stringLiterals.keys ?? "");
+  const [armed, setArmed] = useState(data.enabled);
+  const [addMissing, setAddMissing] = useState(data.addMissing);
+  const [status, setStatus] = useState<string>(data.status);
+  const [message, setMessage] = useState(data.statusMessage);
+  const desktop = isDesktop();
+  useEffect(() => { setKeys(data.stringLiterals.keys ?? ""); }, [data.stringLiterals.keys]);
+
+  async function chooseVault() {
+    const picked = await pickFolderDialog();
+    if (picked && picked !== data.vault) { data.vault = picked; void processGraph(); }
+  }
+  function commitKeys() {
+    const next = keys.split(",").map((k) => k.trim()).filter(Boolean).join(", ");
+    setKeys(next);
+    if (next !== (data.stringLiterals.keys ?? "")) { data.stringLiterals.keys = next; void processGraph(); }
+  }
+  function toggleArmed() { data.enabled = !data.enabled; setArmed(data.enabled); }
+  function toggleAddMissing() { data.addMissing = !data.addMissing; setAddMissing(data.addMissing); void processGraph(); }
+  async function preview() {
+    setStatus("previewing");
+    await data.preview();
+    setStatus(data.status); setMessage(data.statusMessage);
+    void processGraph();
+  }
+  async function run() {
+    setStatus("writing");
+    await data.run();
+    setStatus(data.status); setMessage(data.statusMessage);
+  }
+  const busy = status === "writing" || status === "previewing";
+  const hasRows = isFrameValue(data.cachedPlan) && data.cachedPlan.columns[0].values.length > 0;
+
+  return (
+    <NodeShell node={data} emit={emit}>
+      <InlineInputs node={data} emit={emit} />
+      <div className="sol-conn">
+        <div className="sol-conn__vault">
+          <span className="sol-conn__chip" title={data.vault || "No vault chosen"}>
+            {data.vault ? baseNameOf(data.vault) : "No vault"}
+          </span>
+          {desktop && (
+            <button type="button" className="sol-conn__refresh" title="Choose the vault folder"
+              onClick={(e) => { e.stopPropagation(); void chooseVault(); }} {...stopPtr}>Choose…</button>
+          )}
+        </div>
+        <input
+          className="sol-conn__url" type="text" value={keys} placeholder="Properties to write (blank = all)" spellCheck={false}
+          onChange={(e) => setKeys(e.target.value)} onBlur={commitKeys}
+          onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+          {...stopPtr}
+        />
+        <label className="sol-write__armed" title="Add + register a property the note doesn't have yet" {...stopPtr}>
+          <input type="checkbox" checked={addMissing} onChange={toggleAddMissing} />
+          Add missing
+        </label>
+        <div className="sol-write__row">
+          <button type="button" className="sol-write__run" disabled={!hasRows || busy}
+            title="Read the notes and mark what each write would do"
+            onClick={(e) => { e.stopPropagation(); void preview(); }} {...stopPtr}>Preview</button>
+          <label className="sol-write__armed" {...stopPtr}>
+            <input type="checkbox" checked={armed} onChange={toggleArmed} />
+            Armed
+          </label>
+          <button type="button" className="sol-write__run" disabled={!armed || !hasRows || busy}
+            title="Write the properties into the notes now"
+            onClick={(e) => { e.stopPropagation(); void run(); }} {...stopPtr}>Run</button>
+        </div>
+        {message !== "" && (
+          <div className={`sol-conn__status-text${status === "error" ? " sol-conn__status-text--error" : ""}`} title={message}>
+            {message}
+          </div>
+        )}
+        <FrameDisplay frame={data.cachedPlan} label={data.label || "Write Properties"} />
+      </div>
+    </NodeShell>
+  );
+}

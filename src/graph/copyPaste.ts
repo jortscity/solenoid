@@ -91,7 +91,7 @@ export const INIT_FIELD_ORDER = [
   "pastDays", "forecastDays",
   "country", "region", "year",
   "qrTemplate",
-  "vault", "folder", "glob", "nameFormat", "includeBody",
+  "vault", "folder", "glob", "nameFormat", "includeBody", "addMissing",
 ] as const;
 
 // Object-valued extras, appended after INIT_FIELD_ORDER in this fixed order.
