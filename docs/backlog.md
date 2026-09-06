@@ -22,8 +22,9 @@ elkjs-vs-rete-auto-arrange peer conflict left with the plugin.
 ## Release planning (author-run)
 
 - [ ] **Finish ratifying the 1.4 cut** — the author walked `1.4-plan.md` one item per turn on
-  2026-09-04c (Tracks A–C and D1–D8 ruled; every ruling is in the table's Call column). RESUME AT
-  D9 (AI palette re-enable), then D10, D12, D13, E1, E3, F1, F2, F4, Track H, G; then `2.0-plan.md`.
+  2026-09-04c and 2026-09-06 (Tracks A–F ruled; every ruling is in the table's Call column). OPEN:
+  E1 (aliasing / hidden-port promotion UI — explained, awaiting the call), then Track H, G; then
+  `2.0-plan.md`.
 - [ ] **Ratify `out-of-scope.md`** (DRAFT since July, no ARR anywhere in it) — the deferral
   review's standing ask. Test 3 / §3 / §11 already read the author's 2026-09-01 order
   (collaboration IN); the rest is still the agent's inference awaiting the author's word.

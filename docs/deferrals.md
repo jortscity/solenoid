@@ -30,6 +30,12 @@ and its entry deleted. Ruled-out-forever ideas: `out-of-scope.md`; settled ratio
 
 ## Reopen only if the trigger returns
 
+- **1.4 walk deferrals, 2026-09-06** (the author: "defer for later" / "defer"; plan sections in
+  `1.4-plan.md` stay the spec): **D9** AI palette re-enable + verification tail; **D10**
+  document-level FC defaults; **E3** Materials & Mechanical pack content; **F1** obstacle-avoiding
+  "routed" cable shape (LGPL question still open); **F2** traveling-cable flow pulse as meaning;
+  **F3** moveable / hideable toolbar chrome; **F4** top-bar art slot (needs art). Reopen on the
+  author's word only.
 - **Per-card CSS conversion, step 2** (1.4-plan D8; author 2026-09-04c: "don't touch sockets,
   otherwise defer"). The socket-dot ring stays a DOM element; the badge / lock / divider steps are
   parked with it. Census in `scripts/card-css-census.mjs`.
