@@ -357,3 +357,4 @@ export { DecomposeComponent } from "./DecomposeNode";
 export { OdeIntegrateComponent } from "./OdeIntegrateNode";
 export { FitDistributionComponent } from "./FitDistributionNode";
 export { ScheduleComponent } from "./ScheduleNode";
+export { CubeInputComponent } from "./CubeInputNode";

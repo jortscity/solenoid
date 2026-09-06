@@ -7,11 +7,11 @@
     {
       "id": "noteIntro",
       "type": "NoteNode",
-      "x": -6,
-      "y": -243,
+      "x": -40,
+      "y": -217,
       "init": {
         "label": "Remodel (Gantt)",
-        "body": "# When will it be done, and what can't slip?\nThe tasks live in a **Note**: each frontmatter row names the task, its **days**, and the tasks it waits on as a list. A **Schedule** node runs the critical-path method over a task list: each task's **Duration** in working days and the tasks it waits on (**Predecessors**).\n\nIt appends **Start · Finish · Float · Critical** to the rows. Float is how many days a task can slip without moving the finish; the tasks with none are the critical path. **Project finish** comes out as its own value, and **Gantt** is Mermaid source the Mermaid node draws. A **Holidays** node feeds the days to skip.\n\nTry it: make Paint take 5 days instead of 2 and watch it join the critical path.",
+        "body": "# When will it be done, and what can't slip?\nThe tasks are a **Cube Input**: each record names the task, its **days**, and the tasks it waits on as a list (open the chip to edit a row, a list, or a nested table in place). A **Schedule** node runs the critical-path method over a task list: each task's **Duration** in working days and the tasks it waits on (**Predecessors**).\n\nIt appends **Start · Finish · Float · Critical** to the rows. Float is how many days a task can slip without moving the finish; the tasks with none are the critical path. **Project finish** comes out as its own value, and **Gantt** is Mermaid source the Mermaid node draws. A **Holidays** node feeds the days to skip.\n\nTry it: make Paint take 5 days instead of 2 and watch it join the critical path.",
         "color": "violet",
         "width": 380,
         "height": 270
@@ -19,22 +19,19 @@
     },
     {
       "id": "tasks",
-      "type": "NoteNode",
-      "x": -16,
-      "y": 467,
+      "type": "CubeInputNode",
+      "x": 110,
+      "y": 493,
       "init": {
         "label": "Tasks",
-        "body": "---\ntasks:\n  - {task: Demolition, days: 2, after: []}\n  - {task: Plumbing rough-in, days: 3, after: [Demolition]}\n  - {task: Electrical rough-in, days: 2, after: [Demolition]}\n  - {task: Drywall, days: 2, after: [Plumbing rough-in, Electrical rough-in]}\n  - {task: Paint, days: 2, after: [Drywall]}\n  - {task: Cabinets, days: 4, after: [Drywall]}\n  - {task: Countertops, days: 5, after: [Cabinets, Paint]}\n  - {task: Final inspection, days: 0, after: [Countertops]}\n---\n## The plan\nEight tasks. **after** lists what each one waits on; an empty list is a start. Edit a row and the schedule follows.",
-        "color": "amber",
-        "width": 400,
-        "height": 330
+        "cubeText": "[\n  {\n    \"task\": \"Demolition\",\n    \"days\": 2,\n    \"after\": []\n  },\n  {\n    \"task\": \"Plumbing rough-in\",\n    \"days\": 3,\n    \"after\": [\n      \"Demolition\"\n    ]\n  },\n  {\n    \"task\": \"Electrical rough-in\",\n    \"days\": 2,\n    \"after\": [\n      \"Demolition\"\n    ]\n  },\n  {\n    \"task\": \"Drywall\",\n    \"days\": 2,\n    \"after\": [\n      \"Plumbing rough-in\",\n      \"Electrical rough-in\"\n    ]\n  },\n  {\n    \"task\": \"Paint\",\n    \"days\": 2,\n    \"after\": [\n      \"Drywall\"\n    ]\n  },\n  {\n    \"task\": \"Cabinets\",\n    \"days\": 4,\n    \"after\": [\n      \"Drywall\"\n    ]\n  },\n  {\n    \"task\": \"Countertops\",\n    \"days\": 5,\n    \"after\": [\n      \"Cabinets\",\n      \"Paint\"\n    ]\n  },\n  {\n    \"task\": \"Final inspection\",\n    \"days\": 0,\n    \"after\": [\n      \"Countertops\"\n    ]\n  }\n]"
       }
     },
     {
       "id": "start",
       "type": "DateInputNode",
-      "x": 87,
-      "y": 835,
+      "x": 95,
+      "y": 759,
       "init": {
         "label": "Project start"
       },
@@ -46,7 +43,7 @@
       "id": "holidays",
       "type": "HolidaysNode",
       "x": 72,
-      "y": 123,
+      "y": 149,
       "init": {
         "label": "Holidays",
         "country": "US",
@@ -56,8 +53,8 @@
     {
       "id": "schedule",
       "type": "ScheduleNode",
-      "x": 479,
-      "y": -106,
+      "x": 426,
+      "y": -80,
       "init": {
         "label": "Schedule",
         "mode": "working"
@@ -66,8 +63,8 @@
     {
       "id": "criticalDisplay",
       "type": "DisplayNode",
-      "x": 829,
-      "y": 91,
+      "x": 1040,
+      "y": 233,
       "size": {
         "w": 540,
         "h": 300
@@ -76,8 +73,8 @@
     {
       "id": "finishDisplay",
       "type": "DisplayNode",
-      "x": 1009,
-      "y": 480,
+      "x": 775,
+      "y": 133,
       "init": {
         "label": "Project finish"
       }
@@ -85,8 +82,8 @@
     {
       "id": "gantt",
       "type": "MermaidNode",
-      "x": 820,
-      "y": 631,
+      "x": 766,
+      "y": 651,
       "init": {
         "label": "Gantt"
       },
@@ -97,8 +94,8 @@
     {
       "id": "grp-plan",
       "type": "GroupNode",
-      "x": -40,
-      "y": 65,
+      "x": 48,
+      "y": 91,
       "init": {
         "label": "The plan",
         "members": [
@@ -108,32 +105,56 @@
         ],
         "color": "amber",
         "collapsed": false,
-        "width": 448,
-        "height": 877
+        "width": 292,
+        "height": 775
       }
     },
     {
       "id": "grp-result",
       "type": "GroupNode",
-      "x": 805,
-      "y": 33,
+      "x": 751,
+      "y": 75,
       "init": {
-        "label": "Schedule + finish",
+        "label": "Critical path + finish",
         "members": [
+          "critical",
           "criticalDisplay",
           "finishDisplay"
         ],
         "color": "green",
         "collapsed": false,
-        "width": 592,
-        "height": 560
+        "width": 857,
+        "height": 538
+      }
+    },
+    {
+      "id": "critical",
+      "type": "FilterFrameNode",
+      "x": 775,
+      "y": 256,
+      "init": {
+        "label": "Critical path",
+        "condConfig": {
+          "0": {
+            "op": "eq"
+          }
+        },
+        "valueKeys": [
+          "frame",
+          "column0",
+          "value0"
+        ]
+      },
+      "stringLiterals": {
+        "column0": "Float",
+        "value0": "0"
       }
     }
   ],
   "connections": [
     {
       "source": "tasks",
-      "sourceOutput": "tasks",
+      "sourceOutput": "cube",
       "target": "schedule",
       "targetInput": "tasks"
     },
@@ -151,12 +172,6 @@
     },
     {
       "source": "schedule",
-      "sourceOutput": "cube",
-      "target": "criticalDisplay",
-      "targetInput": "in"
-    },
-    {
-      "source": "schedule",
       "sourceOutput": "finish",
       "target": "finishDisplay",
       "targetInput": "in"
@@ -166,6 +181,18 @@
       "sourceOutput": "gantt",
       "target": "gantt",
       "targetInput": "source"
+    },
+    {
+      "source": "schedule",
+      "sourceOutput": "cube",
+      "target": "critical",
+      "targetInput": "frame"
+    },
+    {
+      "source": "critical",
+      "sourceOutput": "frame",
+      "target": "criticalDisplay",
+      "targetInput": "in"
     }
   ],
   "standoffs": []

@@ -1,5 +1,6 @@
 import { useSyncExternalStore, type ReactNode } from "react";
 import { cubePopup, type DrillView } from "../cubePopupStore";
+import { CubeEditCell, CubeEditRows } from "./cubeEditCell";
 import { appThemeStore } from "../appTheme";
 import { cubeRowCount, cubeDepth, frameRowCount, type CubeCell } from "../frame";
 import { CubeCellChip, frameCellNode, cubeCellToken } from "./cubeCell";
@@ -100,6 +101,9 @@ function levelText(view: DrillView, headers: string[] | null, order: readonly nu
  *  DEEPER IN PLACE via the breadcrumb, so a second window never opens. */
 export function CubePopup() {
   const state = useSyncExternalStore(cubePopup.subscribe, cubePopup.get);
+  // An editing level: the Cube Input's records at this level's path back the cells.
+  const last = state?.stack[state.stack.length - 1];
+  const editView = state?.edit && last && last.kind === "cube" && last.path ? last : null;
   useSyncExternalStore(appThemeStore.subscribe, appThemeStore.version);
   // Keyed on the DRILL LEVEL, so the sort drops instead of carrying a column
   // index across to an unrelated table.
@@ -204,7 +208,9 @@ export function CubePopup() {
                 <th className="table-popup__rowhead">{r + 1}</th>
                 {Array.from({ length: cols }, (_, c) => (
                   <td key={c} className="table-popup__cell" style={{ padding: "2px 6px", textAlign: "left" }}>
-                    {cell(r, c)}
+                    {editView && state.edit
+                      ? <CubeEditCell edit={state.edit} path={editView.path!} row={r} column={headers?.[c] ?? String(c)} accent={state.accent} />
+                      : cell(r, c)}
                   </td>
                 ))}
               </tr>
@@ -214,6 +220,7 @@ export function CubePopup() {
       </div>
 
       <div className="table-popup__footer">
+        {editView && state.edit && <CubeEditRows edit={state.edit} path={editView.path!} rows={rows} />}
         <div className="table-popup__spacer" />
         <button className="table-popup__btn table-popup__btn--primary" onClick={() => cubePopup.close()}>Done</button>
       </div>

@@ -5,7 +5,7 @@
 // the tablePopup; cubes their own cubePopup (drill stack). displayPopupCoverage.test.ts
 // pins that every Display value kind resolves to one of these.
 import { tablePopup, type Cell, type TablePopupState, type FramePopupColumn } from "./tablePopupStore";
-import { cubePopup } from "./cubePopupStore";
+import { cubePopup, type CubeEditBinding } from "./cubePopupStore";
 import { frameToGrid, frameRowCount, isFrameValue, isCubeValue, type FrameValue, type CubeValue } from "./frame";
 import { readFrame, type FrameRef } from "./frameBackend";
 import { matrixUnitOf, isUnitCell } from "./unitValue";
@@ -159,11 +159,11 @@ export function openArrayPopup(
 /** Open a cube in its own drill-stack popup. */
 export function openCubePopup(
   value: CubeValue,
-  { label, hostId, accent, groupColor, groupColorDark }: PopupStyle,
+  { label, hostId, accent, groupColor, groupColorDark, edit }: PopupStyle & { edit?: CubeEditBinding },
 ): void {
   cubePopup.open(
-    { kind: "cube", cube: value, label: label || "Cube" },
-    { accent, groupColor, groupColorDark, pinNodeId: hostId ?? undefined },
+    { kind: "cube", cube: value, label: label || "Cube", ...(edit ? { path: [] } : {}) },
+    { accent, groupColor, groupColorDark, pinNodeId: hostId ?? undefined, edit },
   );
 }
 

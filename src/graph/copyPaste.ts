@@ -92,6 +92,7 @@ export const INIT_FIELD_ORDER = [
   "country", "region", "year",
   "qrTemplate",
   "vault", "folder", "glob", "nameFormat", "includeBody", "addMissing",
+  "cubeText",
 ] as const;
 
 // Object-valued extras, appended after INIT_FIELD_ORDER in this fixed order.

@@ -1,6 +1,7 @@
 import { ClassicPreset } from "rete";
 import { trueAnyIn, strIn, strListIn, cubeIn, cubeOut, frameOut, readInput } from "./shared";
-import { cubeFromColumns, relateFramesToCube, relateCubeToFrame, cubeColumnFromValue, cubeRowCount, inferColumn, makeHeaders, frameFromRows, isCubeValue, isFrameValue, type CubeValue, type CubeCell, type FrameValue, type FrameCell } from "../frame";
+import { parseCubeRecords, DEFAULT_CUBE_TEXT } from "../literalEditors";
+import { cubeFromColumns, recordsToCube, relateFramesToCube, relateCubeToFrame, cubeColumnFromValue, cubeRowCount, inferColumn, makeHeaders, frameFromRows, isCubeValue, isFrameValue, type CubeValue, type CubeCell, type FrameValue, type FrameCell } from "../frame";
 import { aggregateGroup, type AggOp } from "../frameVerbs";
 import { solError, type SolError } from "../errorValue";
 
@@ -257,5 +258,33 @@ export class CubeRollupNode extends ClassicPreset.Node {
     };
     this.cachedResult = result;
     return { frame: result };
+  }
+}
+
+// ─── Cube Input: the literal cube source ──────────────────────────────────────────
+// The fourth literal input beside Table / Frame / List Input. `cubeText` is the stored
+// truth — JSON rows of records, a cell scalar | list | rows-of-records — and the cube
+// derives at compute (recordsToCube: a list value is a LIST cell, never joined into text).
+// Edited through the same popup surface as the others (cubePopup's edit binding).
+export class CubeInputNode extends ClassicPreset.Node {
+  static socketDocs: Record<string, string> = {
+    cube: "One row per record. A list value is a list cell; a list of records nests a table or a cube.",
+  };
+  label: string;
+  cubeText: string;
+  cachedResult: CubeValue | SolError | null = null;
+  width = 240; height = 200;
+
+  constructor(init?: { label?: string; cubeText?: string }) {
+    super("CubeInput");
+    this.label = init?.label ?? "Cube Input";
+    this.cubeText = typeof init?.cubeText === "string" ? init.cubeText : DEFAULT_CUBE_TEXT;
+    this.addOutput("cube", cubeOut("Cube"));
+  }
+
+  data(): { cube: CubeValue | SolError | null } {
+    const parsed = parseCubeRecords(this.cubeText);
+    this.cachedResult = "error" in parsed ? solError("#VALUE!", parsed.error) : recordsToCube(parsed.records);
+    return { cube: this.cachedResult };
   }
 }

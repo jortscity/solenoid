@@ -5,10 +5,13 @@ import { cubeCellToken } from "./cubeCell";
 import { isSolError, type SolError } from "../errorValue";
 import { errorTip } from "./ErrorChip";
 import { flyToNode } from "../flyToNode";
+import type { CubeEditBinding } from "../cubePopupStore";
 
-export function CubeDisplay({ cube, label, full, peek }: {
+export function CubeDisplay({ cube, label, full, peek, edit }: {
   cube: CubeValue | SolError | null;
   label?: string;
+  /** A Cube Input's records seam: the chip opens the popup as an editor. */
+  edit?: CubeEditBinding;
   /** Render every column/row instead of the compact 3×3 preview. MUST switch tableLayout to
    *  `auto` — a `fixed` width:100% table inside a `width:max-content` card sizes runaway. */
   full?: boolean;
@@ -70,7 +73,7 @@ export function CubeDisplay({ cube, label, full, peek }: {
       </table>
       {!peek && (
         <div className="solenoid-table-display__chip" style={{ display: "flex", justifyContent: "flex-end", marginTop: 3 }}>
-          <CubeChip value={cube} label={label} size="sm" />
+          <CubeChip value={cube} label={label} size="sm"  edit={edit} />
         </div>
       )}
     </div>
