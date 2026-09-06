@@ -6,6 +6,25 @@ sessions sweep verbatim to `archive/dev-notes-history.md` — read a digest here
 first; drill into the archive (or `git log`) only for the mechanics of a
 specific item.
 
+### SESSION DIGEST (2026-09-07 — Obsidian bundle 24 item A: Vault Folder → Cube)
+
+A **demo vault** (`demo-vault/`, committed) is the single-source fixture + the author's eyeball
+vault: an mdbase collection (Projects, list + nested-milestone cells), a plain Notes folder typed
+via `.obsidian/types.json` + guesser, a daily-notes folder, TaskNotes-shaped tasks, People link
+targets, one Bases view, wikilinks/embeds/tags. The pure-core tests read it directly (no
+`tests/fixtures/vault/` mirror). **Item A shipped:** `vaultCube.ts` `notesToCube` → ONE cube, a
+row per note: the Bases `file.*` built-ins + the frontmatter union; scalars typed, lists as list
+cells, rows-of-objects as nested frames. Typing per key mdbase → `.obsidian/types.json` → guesser
+widened across rows (`mdbaseTypes.ts` via the new `yaml` dep, `obsidianTypes.ts`, `vaultTypes.ts`);
+ISO datetimes upgrade to fractional serials in the reader (kept local, noteFrontmatter untouched).
+R3 `dateFromName` parses the file name into the `date` column; `dailyNotesConfig.ts` gives its
+default format. `VaultFolderNode` (first cube-emitting connection node, Connections menu): desktop
+-only local read (no C2 network gate), sync `data()` + a background read that walks up for
+`mdbase.yaml`/`_types`, reads `.obsidian/types.json` + `daily-notes.json`, calls notesToCube;
+per-node vault chip. `statVaultFile` bridge + `fs:allow-stat` / `.yaml` read for created/modified +
+mdbase schemas (architecture.md desktop note). Left: the "Your vault as a table" seed (waits on
+fe's A′ so the cube can Filter/Sort). Sequenced with fe (A′) and the Lead (F TaskNotes) on develop.
+
 ### SESSION DIGEST (2026-09-06b — three agents: exports fixed, C1 done, the 1.4 walk finished, H6 built)
 
 Lead + two peers (`agent-coordination.md`: worktrees `be` / `fe`, one tsc/vitest at a time via the
