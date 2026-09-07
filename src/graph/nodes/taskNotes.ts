@@ -157,7 +157,7 @@ export class TaskNotesNode extends ClassicPreset.Node {
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       // A 401 means the plugin wants its bearer token.
-      const friendly = /HTTP 401/.test(msg) ? "Token rejected. Paste the plugin's API token." : /Failed to fetch|ECONNREFUSED|error sending request|NetworkError|Couldn't fetch this URL/i.test(msg) ? "Can't reach TaskNotes. Turn on its HTTP API and check the port in Settings." : msg;
+      const friendly = /HTTP 401/.test(msg) ? "Token rejected. Paste the plugin's API token." : /Failed to fetch|ECONNREFUSED|error sending request|NetworkError|Couldn't fetch this URL/i.test(msg) ? "Can't reach TaskNotes. Install the plugin in the vault Obsidian has open, turn on its HTTP API, and check the port in Settings." : msg;
       connectionStore.setState(this.id, { status: "error", message: friendly });
     }
   }
