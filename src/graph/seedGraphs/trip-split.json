@@ -11,7 +11,7 @@
       "y": -193,
       "init": {
         "label": "Trip split",
-        "body": "# Who pays whom\\nFour friends, one trip, uneven receipts. **Group Cost Settle** nets everyone against their fair share and pays it back in the fewest transfers, exact to the cent.\\n\\nSwitch to **By Share** and the couple (Share 2) owes twice the single travellers. Change a Paid figure and the transfers re-route.",
+        "body": "# Who pays whom\nFour friends, one trip, uneven receipts. **Group Cost Settle** nets everyone against their fair share and pays it back in the fewest transfers, exact to the cent.\n\nSwitch to **By Share** and the couple (Share 2) owes twice the single travellers. Change a Paid figure and the transfers re-route.",
         "color": "violet",
         "width": 380,
         "height": 230

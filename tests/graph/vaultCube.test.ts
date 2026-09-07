@@ -5,7 +5,7 @@ import { notesToCube, dateFromName, type VaultNote, type VaultTypeSources } from
 import { parseMdbaseCollection, mdbaseTypeFor, mdbaseSchemaFor, validateAgainst } from "../../src/graph/mdbaseTypes";
 import { parseObsidianTypes } from "../../src/graph/obsidianTypes";
 import { parseDailyNotesConfig } from "../../src/graph/dailyNotesConfig";
-import { isFrameValue, type CubeValue, type CubeColumn } from "../../src/graph/frame";
+import { isCubeValue, type CubeValue, type CubeColumn } from "../../src/graph/frame";
 import { parseDateToSerial } from "../../src/graph/nodes/dateSerial";
 
 // Bundle 24 item A — the Vault Folder reader's pure cores, over the checked-in demo vault
@@ -64,14 +64,14 @@ describe("Projects — mdbase typing (source #1)", () => {
     expect(col(cube, "due").type).toBe("date");
   });
 
-  it("a list key is a list cell, a rows-of-objects key is a nested frame", () => {
+  it("a list key is a list cell, a rows-of-objects key is a nested cube", () => {
     const r = rowOf(cube, "Kitchen remodel");
     expect(cellAt(cube, "tags", r)).toEqual(["home", "renovation"]);
     const ms = cellAt(cube, "milestones", r);
-    expect(isFrameValue(ms)).toBe(true);
-    if (isFrameValue(ms)) {
+    expect(isCubeValue(ms)).toBe(true);
+    if (isCubeValue(ms)) {
       expect(ms.columns.map((c) => c.name)).toEqual(["name", "due", "done"]);
-      expect(ms.columns.find((c) => c.name === "name")!.values).toEqual(["Demolition", "Cabinets in", "Countertops"]);
+      expect(ms.columns.find((c) => c.name === "name")!.cells).toEqual(["Demolition", "Cabinets in", "Countertops"]);
     }
   });
 
@@ -102,6 +102,17 @@ describe("Notes — .obsidian/types.json typing (source #2) + guesser", () => {
     expect(col(cube, "read").type).toBe("logical");
     expect(cellAt(cube, "started", r)).toBe(Math.round(parseDateToSerial("2026-07-02"))); // date
     expect(cellAt(cube, "author", r)).toBe("Cal Newport");
+  });
+
+  it("a rows-of-objects key with a list field is a nested cube whose field is a list cell", () => {
+    const r = rowOf(cube, "Spanish course");
+    const sessions = cellAt(cube, "sessions", r);
+    expect(isCubeValue(sessions)).toBe(true);
+    if (isCubeValue(sessions)) {
+      expect(sessions.columns.map((c) => c.name)).toEqual(["topic", "minutes", "tags"]);
+      expect(sessions.columns.find((c) => c.name === "tags")!.cells[0]).toEqual(["basics", "speaking"]);
+      expect(sessions.columns.find((c) => c.name === "minutes")!.cells).toEqual([30, 45]);
+    }
   });
 });
 

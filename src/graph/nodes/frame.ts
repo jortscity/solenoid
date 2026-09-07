@@ -1859,7 +1859,7 @@ export class SettleNode extends ClassicPreset.Node {
     if (!input) return null;
     if (outKey === "transfers") return { columns: [{ name: "From", type: "string" }, { name: "To", type: "string" }, { name: "Amount", type: "number" }] };
     const name = input.columns.find((c) => c.type === "string")?.name ?? "Person";
-    return { columns: [{ name, type: "string" }, { name: "Paid", type: "number" }, { name: "Share", type: "number" }, { name: "Net", type: "number" }] };
+    return { columns: [{ name, type: "string" }, { name: "Paid", type: "number" }, { name: "Owes", type: "number" }, { name: "Net", type: "number" }] };
   }
 
   data(inputs: { people?: (FrameValue | null)[] }) {
@@ -1903,7 +1903,7 @@ export function settleFrame(f: FrameValue, split: SettleSplit): { transfers: Fra
     net: { __frame: true, columns: [
       { name: nameCol?.name ?? "Person", type: "string", values: people.map((p) => p.name) },
       { name: "Paid", type: "number", values: people.map((p) => p.paid), ...money },
-      { name: "Share", type: "number", values: r.shares, ...money },
+      { name: "Owes", type: "number", values: r.shares, ...money },
       { name: "Net", type: "number", values: r.nets, ...money },
     ] },
   };
