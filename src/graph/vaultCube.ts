@@ -4,8 +4,8 @@
 // nested frame. Typing per key = first source that answers: mdbase → `.obsidian/types.json`
 // → the guesser widened across rows. Graph/DOM-free; the node supplies the files + sources.
 import {
-  cubeFromColumns, frameFromRecords,
-  type CubeValue, type CubeCell, type FrameValue, type FrameColType,
+  cubeFromColumns, recordsToCube,
+  type CubeValue, type CubeCell, type FrameColType,
 } from "./frame";
 import { parseNoteFrontmatter, type FrontmatterScalar, type FrontmatterRow } from "./noteFrontmatter";
 import { parseDate } from "./nodes/dateSerial";
@@ -318,8 +318,10 @@ function scalarKindOfValue(v: FrontmatterScalar): ScalarKind {
 function cellFor(value: FrontmatterValueLoose | undefined, shape: TypeHint): CubeCell {
   if (value === undefined || value === null) return null;
   if (shape.kind === "frame") {
+    // A rows-of-objects key is a nested CUBE (no in-cell string lists — the cube holds a
+    // record whose field may itself be a list); frame.ts's recordsToCube is the shared shape.
     if (Array.isArray(value) && value.length > 0 && typeof value[0] === "object" && value[0] !== null) {
-      return frameFromRecords(value as FrontmatterRow[]) as FrameValue;
+      return recordsToCube(value as FrontmatterRow[]);
     }
     return null;
   }
