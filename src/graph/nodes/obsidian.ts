@@ -46,8 +46,8 @@ export class WriteObsidianNode extends ClassicPreset.Node {
   subfolder: string;
   /** overwrite | append | block (a managed marker block the writer owns). */
   mode: ObsidianWriteMode;
-  /** Link each written note back to a `Solenoid/<doc>` stub note (bundle D) — on for
-   *  whole-document writes; the user's records (B / F6) leave it off. */
+  /** Link each written note back to a `Solenoid/<doc>` stub note (bundle D). Opt-in
+   *  (author 2026-09-07): off unless the user turns it on. */
   stamp: boolean;
   /** The date the last data() saw on the `date` input (null = unwired / blank). */
   private wiredDate: number | null = null;
@@ -66,7 +66,7 @@ export class WriteObsidianNode extends ClassicPreset.Node {
     this.fileName = init?.fileName ?? "";
     this.subfolder = init?.subfolder ?? "";
     this.mode = init?.mode === "append" || init?.mode === "block" ? init.mode : "overwrite";
-    this.stamp = init?.stamp !== false;
+    this.stamp = init?.stamp === true;
     this.addInput("in", documentIn("Document"));
     this.addInput("date", dateIn("Date"));
   }

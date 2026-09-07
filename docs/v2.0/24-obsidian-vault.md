@@ -194,8 +194,9 @@ name>]] › <node name>"` — a **wikilink to a graph stub note** that the first
 (`Solenoid/<doc>.md`: `type: solenoid`, `nodes:` the writer names, `updated:`; body: what this
 graph writes where, and with J the `run-graph … --run` line) and later writes refresh.
 Backlinks then answer "which graph wrote this", the graph view draws the edge, a Bases view
-over `Solenoid/` lists every graph touching the vault. On B and F6 the key is the `stamp`
-toggle, **off** (those notes are the user's records). Vault Folder, Import Note and both
+over `Solenoid/` lists every graph touching the vault. The `stamp` toggle is **off** by
+default everywhere (author 2026-09-07, opt-in); when on, Preview names the stub path before
+Run. Vault Folder, Import Note and both
 writers get **Open in Obsidian**: `obsidian://open?vault=<basename of the vault
 path>&file=<vault-relative, URL-encoded, no .md>` via `openExternal` (no new capability;
 backslashes → `/`). A `solenoid://` deep link back is HOLD until a caller exists.
@@ -358,7 +359,8 @@ Bases"); F is independent of B and C.
 3. Property writes **patch YAML** (B); the API (F6) is the path for task notes. B refuses a key
    it can't patch; F6 refuses an update row without `path`.
 4. **F ships as feed + F4/F3/F5/F6 without waiting on H6**; `blockedBy` is emitted from day one.
-5. `includeBody` **off**; `stamp` **off** on property writes, on for whole-document writes;
+5. `includeBody` **off**; `stamp` **off** everywhere, opt-in (author 2026-09-07): the toggle
+   stays on the card and, when on, Preview names the `Solenoid/<doc>.md` stub before Run;
    `writeBase` **off**.
 6. Import Note **stays a Note** and borrows the refresh timer + watcher hook.
 7. Readers emit **one `cube`**, the row verbs take it, writers take `cube`, a sink's preview is

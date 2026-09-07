@@ -14,6 +14,7 @@ import { SegToggle } from "./SegToggle";
 import { OBSIDIAN_WRITE_MODE_OPTIONS } from "../nodes/obsidian";
 import type { ObsidianWriteMode } from "../obsidianWrite";
 import { renderNameTemplate, hasTemplateTokens, type NameTemplateContext } from "../nameTemplate";
+import { stubRelPath } from "../graphStub";
 import "./ConnectionNodes.css";
 import "./WriteNodes.css";
 import { stopDragStart } from "../coarse";
@@ -225,6 +226,7 @@ export function WriteObsidianComponent({ data, emit }: NodeProps<WriteObsidianNo
           <input type="checkbox" checked={stamp} onChange={toggleStamp} />
           Link to graph
         </label>
+        {stamp && <div className="sol-conn__note" title="Stub note this write adds a solenoid: link to">+ {stubRelPath(documentStore.currentName())}</div>}
         <div style={{ display: "flex", gap: 4 }}>
           <select
             className="sol-conn__select"

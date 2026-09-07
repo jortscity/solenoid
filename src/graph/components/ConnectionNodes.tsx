@@ -16,7 +16,7 @@ import type {
 import { processGraph } from "../process";
 import { connectionStore, refreshConnection, type ConnectionState } from "../connectionStore";
 import { settingsStore } from "../settingsStore";
-import { isDesktop, listLocalFiles, pickFolderDialog, baseNameOf, openExternal } from "../fileBridge";
+import { isDesktop, listLocalFiles, listVaultFolders, pickFolderDialog, baseNameOf, openExternal } from "../fileBridge";
 import { obsidianOpenUrl } from "../obsidianLinks";
 import { apiKeyStore } from "../apiKeyStore";
 import { PROVIDER_LIST, getProvider, type ProviderId } from "../dataProviders";
@@ -684,11 +684,23 @@ export function VaultFolderComponent({ data, emit }: NodeProps<VaultFolderNodeTy
   const [glob, setGlob] = useState(data.glob);
   const [nameFormat, setNameFormat] = useState(data.nameFormat);
   const [minutes, setMinutes] = useState(data.refreshMinutes);
+  const [folders, setFolders] = useState<string[]>([]);
   const desktop = isDesktop();
   useAutoRefresh(data.id, minutes);
   // Obsidian saved under this folder → re-read (bundle E; the cadence stays the stopgap).
   useVaultWatch(data.vault, folder, () => { void refreshConnection(data.id); }, desktop);
   useEffect(() => { setFolder(data.folder); }, [data.folder]);
+  // The subfolder dropdown lists the vault's folders (same control as Write to Obsidian).
+  useEffect(() => {
+    let alive = true;
+    void listVaultFolders(data.vault).then((f) => { if (alive) setFolders(f); });
+    return () => { alive = false; };
+  }, [data.vault]);
+  function pickFolder(next: string) {
+    setFolder(next);
+    if (next !== data.folder) { data.folder = next; void processGraph(); }
+  }
+  function refreshFolders() { void listVaultFolders(data.vault).then(setFolders); }
 
   async function chooseVault() {
     const picked = await pickFolderDialog();
@@ -735,13 +747,30 @@ export function VaultFolderComponent({ data, emit }: NodeProps<VaultFolderNodeTy
               )}
             </div>
             <div className="sol-conn__note">Obsidian vault{data.folder ? ` · ${data.folder}` : ""}</div>
-            <input
-              className="sol-conn__url" type="text" value={folder} placeholder="Subfolder (blank = whole vault)" spellCheck={false}
-              onChange={(e) => setFolder(e.target.value)}
-              onBlur={(e) => commitField(e.target.value, data.folder, setFolder, (v) => { data.folder = v; })}
-              onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
-              onPointerDown={stopDragStart} onMouseDown={(e) => e.stopPropagation()}
-            />
+            <div style={{ display: "flex", gap: 4 }}>
+              <select
+                className="sol-conn__select"
+                style={{ flex: 1 }}
+                value={folder}
+                onChange={(e) => pickFolder(e.target.value)}
+                onPointerDown={stopDragStart} onMouseDown={(e) => e.stopPropagation()}
+              >
+                <option value="">Whole vault</option>
+                {/* A previously-picked folder that no longer lists still shows so the
+                    selection isn't silently lost. */}
+                {folder && !folders.includes(folder) && <option value={folder}>{folder}</option>}
+                {folders.map((f) => <option key={f} value={f}>{f}</option>)}
+              </select>
+              <button
+                type="button"
+                className="sol-conn__refresh"
+                title="Rescan vault folders"
+                onClick={(e) => { e.stopPropagation(); refreshFolders(); }}
+                onPointerDown={stopDragStart} onMouseDown={(e) => e.stopPropagation()}
+              >
+                ⟳
+              </button>
+            </div>
             <input
               className="sol-conn__url" type="text" value={glob} placeholder="Name filter, e.g. 2026-* (optional)" spellCheck={false}
               onChange={(e) => setGlob(e.target.value)}
