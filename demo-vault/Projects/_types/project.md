@@ -41,7 +41,7 @@ schema:
 ---
 # Project
 
-The type for every note in the Projects collection. `status` is an enum, `priority`
-an integer 1–5, `budget` a number, `due` a date, `tags` a list, and `milestones` a
-small table (name, due, done) — the nested shapes a plain frame can't hold, which is
-why a Vault Folder reads a folder as a **cube**.
+The shape every note in the Projects collection follows: `status` is one of planning,
+active, blocked, or done; `priority` an integer 1–5; `budget` a number; `due` a date;
+`tags` a list; and `milestones` a small table of name, due, and done. New project notes
+are validated against this.

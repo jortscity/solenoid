@@ -8,8 +8,8 @@ tags: [book, productivity]
 ---
 # Deep Work
 
-Notes on focus. The property types here come from `.obsidian/types.json` (rating a
-number, read a checkbox, started/finished dates), not from an mdbase schema — this
-folder has none, so a Vault Folder falls through mdbase → types.json → guesser.
+Cal Newport on focus. The argument: long, distraction-free blocks beat scattered hours,
+and the ability to do that kind of work is getting rarer and more valuable. Re-read the
+rules chapter before starting the next big project.
 
 #book #productivity

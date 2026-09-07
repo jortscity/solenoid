@@ -46,4 +46,23 @@ describe("run-graph --vault", () => {
     expect(written).toContain("# Hello");
     await expect(runGraph(graph, { vault: tmp, run: "No such sink" })).rejects.toThrow(/no sink named/);
   }, 30_000);
+
+  it("--run a Write Properties over the vault writes current scalar values back with no byte change", async () => {
+    tmp = mkdtempSync(path.join(tmpdir(), "solenoid-vault-"));
+    cpSync(DEMO, tmp, { recursive: true });
+    const noteRel = path.join("Projects", "Kitchen remodel.md");
+    const before = readFileSync(path.join(tmp, noteRel), "utf8");
+    const graph = {
+      nodes: [
+        { id: "v", type: "VaultFolderNode", init: { label: "Projects", folder: "Projects" } },
+        // Only `status` (a scalar) round-trips byte-for-byte; a list would re-render block-style.
+        { id: "w", type: "WritePropertiesNode", init: { label: "Sync status" }, stringLiterals: { keys: "status" } },
+      ],
+      connections: [{ source: "v", sourceOutput: "cube", target: "w", targetInput: "rows" }],
+    };
+    await runGraph(graph, { vault: tmp });
+    expect(readFileSync(path.join(tmp, noteRel), "utf8")).toBe(before); // wiring never writes
+    await runGraph(graph, { vault: tmp, run: "Sync status" });
+    expect(readFileSync(path.join(tmp, noteRel), "utf8")).toBe(before); // current value → unchanged
+  }, 30_000);
 });

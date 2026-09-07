@@ -7,8 +7,8 @@ sessions:
 ---
 # Spanish course
 
-Tracking lessons. Each session is a small record with its own tag list, so `sessions`
-reads as a **nested cube** (a list inside a record can't live in a flat frame cell).
+Working through the beginner track with a friend on weekends. Greetings stuck; the past
+tense needs another pass. Next up: ordering food and asking for directions.
 
 Related: [[Notes/Deep Work]].
 

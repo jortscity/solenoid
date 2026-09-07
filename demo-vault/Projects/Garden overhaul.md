@@ -10,7 +10,7 @@ milestones:
 ---
 # Garden overhaul
 
-Blocked on the [[Projects/Kitchen remodel]] finishing so the yard access is clear.
-Waters off the [[Notes/Idea - vault as a table|garden dashboard]] once it is built.
+Blocked on the [[Projects/Kitchen remodel]] finishing so the yard has access again.
+Soil test first, then beds and irrigation in the spring.
 
 #home #outdoors

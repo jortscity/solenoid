@@ -10,10 +10,11 @@ It is deliberately varied so every typing path and cell shape is exercised:
 - **`Projects/`** — an **mdbase collection** (`mdbase.yaml` + `_types/project.md`). Types
   come from the mdbase schema: `status` (enum → string), `priority` (integer → number),
   `budget` (number), `due` (date), `tags` (list), `milestones` (array of objects → a
-  nested frame cell). The typing source of first resort.
+  nested cube cell). The typing source of first resort.
 - **`Notes/`** — a **plain folder** with no schema. `Deep Work.md`'s `rating` / `read` /
   `started` / `finished` are typed from **`.obsidian/types.json`**; everything else falls
-  to the guesser. Wikilinks, `#tags`, and an `![[embed]]` appear in bodies.
+  to the guesser. `Spanish course.md`'s `sessions` is a list of records with their own tag
+  lists — a nested cube. Wikilinks, `#tags`, and an `![[embed]]` appear in bodies.
 - **`Daily/`** — the **daily-notes folder** (`.obsidian/daily-notes.json`: `YYYY-MM-DD`).
   Each note carries `mood` / `sleep` / `weight` / `exercised`. With R3 the file name
   parses into a `date` column, so these become a time series.

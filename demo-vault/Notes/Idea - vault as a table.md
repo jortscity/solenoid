@@ -1,13 +1,13 @@
 ---
 type: idea
-tags: [solenoid, idea]
+tags: [idea]
 ---
-# Idea: the vault as a table
+# Idea: one table for everything I'm tracking
 
-Point a Vault Folder node at this vault and the whole folder comes in as one **cube** —
-one row per note, frontmatter keys as columns, lists and milestone tables riding along
-in nested cells. Then Filter `tags contains book`, Sort by `rating`, and read the result.
+Instead of hopping between notes, it'd be nice to see the whole vault as one table —
+books by rating, projects by due date, daily habits over time — and sort or filter it
+without copying anything by hand. Worth trying with Solenoid.
 
 Related: [[Notes/Deep Work]], [[Projects/Kitchen remodel]].
 
-#solenoid #idea
+#idea
