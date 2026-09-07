@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { cubePopup, type CubeEditBinding, type DrillView } from "../cubePopupStore";
-import { recordsToCube, frameFromRecords } from "../frame";
+import { recordsToCube, frameFromRecords, cubeRowCount, cubeDepth } from "../frame";
 import {
   getAtPath, setAtPath, recordsShape, parseCellText, cellTextOf,
   type CubePath, type CubeRecord,
@@ -75,16 +75,16 @@ export function CubeEditCell({ edit, path, row, column }: {
   if (shape === "list" || shape === "empty") {
     const list = (value ?? []) as unknown[];
     return (
-      <button type="button" className={chipClass("array")} title="Drill in and edit the list"
+      <button type="button" className={chipClass("array")} title={`${list.length}-item list. Drill in and edit.`}
         onPointerDown={stop} onMouseDown={stop} onClick={(e) => { stop(e); cubePopup.drill(listViewAt(records, cellPath, column)); }}>
-        [List {list.length}]
+        [List]
       </button>
     );
   }
   if (shape === "frame") {
     const rows = value as CubeRecord[];
     return (
-      <button type="button" className={chipClass("frame")} title="Drill in and edit the table"
+      <button type="button" className={chipClass("frame")} title={`Frame ${rows.length}×${Object.keys(rows[0] ?? {}).length}. Drill in and edit.`}
         onPointerDown={stop} onMouseDown={stop} onClick={(e) => { stop(e); cubePopup.drill(frameViewAt(records, cellPath, column)); }}>
         [{rows.length}×{Object.keys(rows[0] ?? {}).length} Frame]
       </button>
@@ -92,10 +92,12 @@ export function CubeEditCell({ edit, path, row, column }: {
   }
   if (shape === "cube") {
     const rows = Array.isArray(value) ? (value as CubeRecord[]) : [value as CubeRecord];
+    const c = recordsToCube(rows);
+    const dims = `${cubeRowCount(c)}×${c.columns.length}×${cubeDepth(c)}`;
     return (
-      <button type="button" className={chipClass("cube")} title="Drill in and edit"
+      <button type="button" className={chipClass("cube")} title={`Cube ${dims} (rows × cols × depth). Drill in and edit.`}
         onPointerDown={stop} onMouseDown={stop} onClick={(e) => { stop(e); cubePopup.drill(cubeViewAt(records, cellPath, column)); }}>
-        [{rows.length} row{rows.length === 1 ? "" : "s"} Cube]
+        [{dims} Cube]
       </button>
     );
   }
