@@ -21,7 +21,8 @@ export const TASKNOTES_PROVIDER_META = {
 
 function base(url: string): string {
   const t = url.trim() || TASKNOTES_DEFAULT_URL;
-  return t.replace(/\/+$/, "");
+  // "localhost:8080" typed without a scheme is a bare host, not a URL.
+  return (/^[a-z][a-z0-9+.-]*:\/\//i.test(t) ? t : `http://${t}`).replace(/\/+$/, "");
 }
 
 export function tasksUrl(url: string, offset: number, limit = TASKS_PAGE): string {
