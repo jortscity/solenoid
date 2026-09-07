@@ -571,6 +571,8 @@
 /* Touch: the drill-path breadcrumb links need tappable room. */
 @media (pointer: coarse) {
   .cube-popup__crumb { padding: 5px 8px; font-size: 13px; }
+  /* The Cube Input's nested-cell chips drill too; a 10px chip is not a finger target. */
+  .table-popup__cell .solenoid-array-chip--sm { padding: 5px 10px; font-size: 13px; }
 }
 
 /* Form view: one record as stacked labeled fields (the record-entry editor). */

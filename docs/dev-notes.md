@@ -6,6 +6,25 @@ sessions sweep verbatim to `archive/dev-notes-history.md` — read a digest here
 first; drill into the archive (or `git log`) only for the mechanics of a
 specific item.
 
+### SESSION DIGEST (2026-09-07b — three agents: the Obsidian bundle lands, Track H, the Cube Input editor)
+
+**Obsidian + TaskNotes** is the author's adoption bet (backlog § Obsidian + TaskNotes). Landed
+across the three agents, ledger in the bundle doc's § What stands today: A (Vault Folder → cube),
+A′ (row verbs take cubes, `recordsToCube` the one rows-of-objects → cube shape), B (Write
+Properties with plan / Preview / Run + mdbase validation), C (widgets), D (Open in Obsidian, the
+graph stub note + `solenoid:` backlink), E (vault watch), F (TaskNotes node: tasks / calendar /
+stats; Write Tasks), F6, I, J, R5, the Weather and Holidays nodes, the headless `run-graph`
+seam (`FsProvider` + `--vault` / `--tasknotes` / `--run`). Seeds: vault-as-a-table,
+kitchen-remodel-tasknotes, garden-dashboard, which-task-next. **Track H**: Payoff Planner (H1),
+Group Cost Settle (H3), the hours allocator seed (H3.5), Schedule (H6) over a tasks CUBE — the
+author's ruling that nothing is designed around an in-cell string list. **Cube Input** is the
+fourth literal source; its popup edits every level in ONE window (drill, never a popup above a
+popup), and List Input got the same popup (subsystem-invariants § Literal input editors).
+**Review pass** (author: "so much added, all three go and review"): the error guard now passes a
+THROWN SolError through with its code (a Filter on an empty frame read `#ERROR! [object Object]`);
+the Schedule catalog copy caught up with list-cell Predecessors; seed note copy fixed
+(trip-split's escaped newlines, remodel-gantt's repetition). Peers' review findings: theirs.
+
 ### SESSION DIGEST (2026-09-07 — Obsidian bundle 24 item A: Vault Folder → Cube)
 
 A **demo vault** (`demo-vault/`, committed) is the single-source fixture + the author's eyeball
