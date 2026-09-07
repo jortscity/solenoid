@@ -79,7 +79,7 @@
       "id": "colPast",
       "type": "GetColumnNode",
       "x": 1579,
-      "y": 114,
+      "y": 115,
       "init": {
         "label": "Rain (behind)",
         "readAs": "number"
@@ -91,8 +91,8 @@
     {
       "id": "aggPast",
       "type": "AggregateNode",
-      "x": 1904,
-      "y": 116,
+      "x": 1844,
+      "y": 117,
       "init": {
         "label": "Rain last 14 days",
         "op": "sum"
@@ -124,7 +124,7 @@
       "id": "colFuture",
       "type": "GetColumnNode",
       "x": 1579,
-      "y": 480,
+      "y": 481,
       "init": {
         "label": "Rain (ahead)",
         "readAs": "number"
@@ -136,7 +136,7 @@
     {
       "id": "aggFuture",
       "type": "AggregateNode",
-      "x": 1904,
+      "x": 1844,
       "y": 489,
       "init": {
         "label": "Rain next 7 days",
@@ -160,7 +160,7 @@
     {
       "id": "note-c",
       "type": "NoteNode",
-      "x": 2191,
+      "x": 2131,
       "y": 34,
       "init": {
         "label": "The dashboard",
@@ -174,7 +174,7 @@
     {
       "id": "report",
       "type": "ReportNode",
-      "x": 2221,
+      "x": 2161,
       "y": 222,
       "init": {
         "label": "Watering call",
@@ -187,7 +187,7 @@
     {
       "id": "alert",
       "type": "AlertNode",
-      "x": 2281,
+      "x": 2221,
       "y": 460,
       "init": {
         "label": "Water the garden?",
@@ -215,7 +215,7 @@
         "color": "sky",
         "collapsed": false,
         "width": 722,
-        "height": 559
+        "height": 580
       }
     },
     {
@@ -237,14 +237,14 @@
         ],
         "color": "amber",
         "collapsed": false,
-        "width": 1325,
+        "width": 1265,
         "height": 780
       }
     },
     {
       "id": "grp-dash",
       "type": "GroupNode",
-      "x": 2167,
+      "x": 2107,
       "y": -24,
       "init": {
         "label": "The dashboard",

@@ -21,7 +21,7 @@
       "id": "people",
       "type": "FrameInputNode",
       "x": -16,
-      "y": 139,
+      "y": 140,
       "init": {
         "label": "Receipts",
         "frameText": "[{\"name\": \"Person\", \"type\": \"string\", \"values\": [\"Ada\", \"Bo\", \"Cy\", \"Di\"]}, {\"name\": \"Paid\", \"type\": \"number\", \"unit\": \"usd\", \"values\": [300, 100, 40, 0]}, {\"name\": \"Share\", \"type\": \"number\", \"values\": [2, 1, 1, 1]}]"
@@ -41,7 +41,7 @@
       "id": "netDisplay",
       "type": "DisplayNode",
       "x": 647,
-      "y": -69,
+      "y": -68,
       "init": {
         "label": "Net positions"
       },
