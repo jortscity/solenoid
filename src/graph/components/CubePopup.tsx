@@ -1,6 +1,6 @@
 import { useSyncExternalStore, type ReactNode } from "react";
 import { cubePopup, type DrillView } from "../cubePopupStore";
-import { CubeEditCell, ListEditCell, CubeEditRows } from "./cubeEditCell";
+import { CubeEditCell, ListEditCell, CubeEditRows, CubeEditHeader } from "./cubeEditCell";
 import { appThemeStore } from "../appTheme";
 import { cubeRowCount, cubeDepth, frameRowCount, type CubeCell } from "../frame";
 import { CubeCellChip, frameCellNode, cubeCellToken } from "./cubeCell";
@@ -208,7 +208,9 @@ export function CubePopup() {
                   onClick={() => cycleSort(c)}
                   className={`${headers ? "table-popup__colhead table-popup__colhead--name" : "table-popup__colhead"} table-popup__colhead--sortable`}
                 >
-                  {headers ? headers[c] : c + 1}
+                  {editView && state.edit && headers && editView.kind !== "list"
+                    ? <CubeEditHeader edit={state.edit} path={editView.path!} column={headers[c]} />
+                    : (headers ? headers[c] : c + 1)}
                   <SortIndicator dir={sortDirOf(sort, c)} />
                 </th>
               ))}
