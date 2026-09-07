@@ -23,6 +23,7 @@ import { PROVIDER_LIST, getProvider, type ProviderId } from "../dataProviders";
 import { FrameDisplay } from "./FrameDisplay";
 import { LazySelect } from "./LazySelect";
 import { NodeShell, InlineOutputRows, type NodeProps } from "./nodeKit";
+import { SegToggle } from "./SegToggle";
 import { InlineInputs, useConnectedInputs, useIncomingSources } from "./inlineInput";
 import { MeasuredSocketRow } from "./NodeSocket";
 import { RefreshIcon } from "./RefreshIcon";
@@ -456,6 +457,10 @@ export function GeocodeComponent({ data, emit }: NodeProps<GeocodeNodeType>) {
 // ─── WEATHER ─────────────────────────────────────────────────────────────────────
 // Lat/lon come from Geocode's sockets or the typed fallbacks; the °C/°F toggle sets the
 // API unit and tags the temps downstream. Numeric fields commit on blur/Enter.
+const WEATHER_UNIT_OPTIONS: { value: "C" | "F"; label: string }[] = [
+  { value: "C", label: "°C" },
+  { value: "F", label: "°F" },
+];
 export function WeatherComponent({ data, emit }: NodeProps<WeatherNodeType>) {
   useSyncExternalStore(connectionStore.subscribe, connectionStore.version); // fill the Now rows when a fetch lands
   const [past, setPast] = useState(String(data.pastDays));
@@ -489,15 +494,11 @@ export function WeatherComponent({ data, emit }: NodeProps<WeatherNodeType>) {
   return (
     <NodeShell node={data} emit={emit} hideOutputSockets>
       <div className="sol-conn">
-        <LazySelect
-          className="sol-conn__select"
+        <SegToggle
           value={data.unit}
-          title="Temperature unit"
-          onChange={(e) => { data.unit = e.target.value === "F" ? "F" : "C"; void processGraph(); }}
-        >
-          <option value="C">°C</option>
-          <option value="F">°F</option>
-        </LazySelect>
+          options={WEATHER_UNIT_OPTIONS}
+          onChange={(u) => { data.unit = u; void processGraph(); }}
+        />
       </div>
       {/* Lat/Lon are wireable socket rows — Geocode drives them, or the typed fallback does. */}
       <InlineInputs node={data} emit={emit} />

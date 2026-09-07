@@ -16,4 +16,4 @@ Test lock: free
 
 - Lead (solenoid-2c) — 2026-09-07 review pass done and merged (develop 94a4fc7d+); session wrapped.
 - solenoid-be — Obsidian A (Vault Folder) + B (Write Properties: line patcher, plan/Preview/Run, mdbase validation) + D (both halves: Open in Obsidian, graph stub + solenoid: backlink) done & merged; C1 widget bundle shipped earlier. Idle — awaiting next (writeBase / E watcher clients open).
-- solenoid-fe — REVIEW pass: (1) tonight's seeds (layout=T, compute, Note copy, catalog orders, run-graph), (2) literal input editors (Table/Frame/List/Cube), (3) new card controls (Schedule/Settle/Payoff/HoursAllocator/Holidays/TaskNotes/Weather). Fixing clear things on fe.
+- solenoid-fe — REVIEW pass DONE + round-2 rulings applied on fe (76357f74 seed order bands, eef76499 Weather SegToggle, c6e64971 List Input hide ±Col). Wrapped per author. Stopping.
