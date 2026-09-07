@@ -74,14 +74,11 @@ The bundle `v2.0/24-obsidian-vault.md` is promoted to the flagship track; its §
 build rules and § Sequencing the order (A′ → A → B → D → C → F → I → J → E). Every item ships
 verified in the desktop app against the demo vault. Landed ledger: the bundle's § What stands today.
 
-- [x] **writeBase** stands (be `56ac02b6`, review pass cleared, merged with the branch): the
-  Write Properties `writeBase` toggle emits a `<node>.base` Bases view over the folder
-  (`baseView.ts`, `baseView.test.ts`). Left for the author's desktop eyeball below.
 - [ ] **AddColumn over a cube** (fe): Add Column is frame-only; Computed Column already takes a cube.
 - [ ] **Author's desktop eyeball** of the flagship cards against `demo-vault/` (Settings ▸ Obsidian
   → the repo's demo-vault): Vault Folder (be's ten-step checklist in the 09-07 digest), Write
   Properties Preview/Run on a copy, TaskNotes with the plugin's API on, Write to Obsidian block mode
-  + `{{daily}}`, the Cube Input editor's three drill targets.
+  + `{{daily}}`, Write Properties' `writeBase` view, the Cube Input editor's three drill targets.
 
 ## Canvas chrome (queued by the author 2026-09-07, "not top priority")
 
