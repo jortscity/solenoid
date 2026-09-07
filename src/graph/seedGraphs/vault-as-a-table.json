@@ -8,7 +8,7 @@
       "id": "note0",
       "type": "NoteNode",
       "x": -120,
-      "y": 63,
+      "y": 68,
       "init": {
         "label": "Your vault as a table",
         "body": "# Your vault as a table\n\nVault Folder reads a folder of notes as one table: a row per note, a column per frontmatter key, with lists and sub-tables kept in the cells. Filter keeps the notes whose tags contain `book`. Sort orders them by rating. Display shows the result.\n\nPoint the Vault Folder at your own vault, or at the bundled demo-vault. Reading a vault works in the desktop app only.",
@@ -21,7 +21,7 @@
       "id": "notes",
       "type": "VaultFolderNode",
       "x": 360,
-      "y": 121,
+      "y": 125,
       "init": {
         "label": "Vault Folder",
         "folder": "Notes"
@@ -31,7 +31,7 @@
       "id": "filter",
       "type": "FilterFrameNode",
       "x": 627,
-      "y": -53,
+      "y": -57,
       "init": {
         "label": "tags contains book",
         "condConfig": {
@@ -54,7 +54,7 @@
       "id": "sort",
       "type": "SortFrameNode",
       "x": 892,
-      "y": -6,
+      "y": -11,
       "init": {
         "label": "by rating",
         "dir": "desc"
@@ -67,7 +67,7 @@
       "id": "display",
       "type": "DisplayNode",
       "x": 1157,
-      "y": 36,
+      "y": 31,
       "init": {
         "label": "Book notes"
       }

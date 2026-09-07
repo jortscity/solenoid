@@ -24,10 +24,10 @@ function todaySerial(): number {
 
 export class ScheduleNode extends ClassicPreset.Node {
   static socketDocs: Record<string, string> = {
-    tasks: "One row per task. Task is the first text column (names must be unique), Duration the first number column in days (blank or 0 is a milestone), and Predecessors a list cell naming the tasks that must finish first. An optional Project column groups the gantt into sections.",
+    tasks: "One row per task. Task is the first text column with unique names, Duration the first number column in days where blank or 0 marks a milestone, and Predecessors a list cell naming the tasks that must finish first. An optional Project column groups the gantt into sections.",
     start: "The project start. Unwired, the schedule starts today.",
     holidays: "Dates to skip alongside weekends. Only read in Working days mode.",
-    cube: "The rows in their original order with Start, Finish, Float (days a task can slip without moving the finish) and Critical (Float is 0) appended.",
+    cube: "The rows in their original order with Start, Finish, Float and Critical appended. Float is how many days a task can slip without moving the finish, and Critical marks the tasks whose float is 0.",
     gantt: "Mermaid gantt source for the schedule. Wire it into a Mermaid node to draw it, or into a Report.",
   };
 

@@ -89,6 +89,19 @@ export function FrameDisplay({ frame, label, onSave, source, onSaveSource, onCom
     );
   }
   if (!frame || frame.columns.length === 0) {
+    // An EDITABLE input must never lose its chip: text that parses to nothing would blank
+    // the node to "—" and make it wholly uneditable (mirrors TableDisplay).
+    if (onSave || source || onSaveSource || onCommitSource) {
+      const stub: FrameValue = frame ?? { __frame: true, columns: [] };
+      return (
+        <div className="solenoid-node__display-value solenoid-table-display" style={{ padding: "4px 8px", userSelect: "text" }}>
+          <div style={{ color: "var(--text-muted)", fontSize: 11, fontStyle: "italic" }}>empty</div>
+          <div className="solenoid-table-display__chip" style={{ display: "flex", justifyContent: "flex-end", marginTop: 3 }}>
+            <FrameChip value={stub} label={label} size="sm" onSave={onSave} source={source} onSaveSource={onSaveSource} onCommitSource={onCommitSource} lambdaOptions={lambdaOptions} formLayout={formLayout} />
+          </div>
+        </div>
+      );
+    }
     return <div className="solenoid-node__display-value solenoid-node__display-value--empty">—</div>;
   }
   const rows = frameRowCount(frame);

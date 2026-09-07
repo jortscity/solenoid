@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { settleGroup } from "../../src/graph/nodes/settleOps";
+import { settleFrame } from "../../src/graph/nodes/frame";
+import type { FrameValue } from "../../src/graph/frame";
 
 // 1.4 H3 Group Cost Settle: net everyone, then the biggest creditor takes from the biggest
 // debtor — the fewest transfers a greedy pass gives, exact to the cent.
@@ -33,5 +35,16 @@ describe("settleGroup", () => {
   });
   it("an empty group settles nothing", () => {
     expect(settleGroup([])).toEqual({ nets: [], shares: [], transfers: [] });
+  });
+  it("settleFrame: the net frame names the fair share Owes, never the input's Share weights", () => {
+    const f: FrameValue = { __frame: true, columns: [
+      { name: "Person", type: "string", values: ["Ada", "Bo"] },
+      { name: "Paid", type: "number", values: [90, 0] },
+      { name: "Share", type: "number", values: [2, 1] },
+    ] };
+    const { transfers, net } = settleFrame(f, "weighted");
+    expect(net.columns.map((c) => c.name)).toEqual(["Person", "Paid", "Owes", "Net"]);
+    expect(net.columns[2].values).toEqual([60, 30]);
+    expect(transfers.columns.map((c) => c.name)).toEqual(["From", "To", "Amount"]);
   });
 });
