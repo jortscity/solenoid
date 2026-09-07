@@ -11,7 +11,7 @@
       "y": -217,
       "init": {
         "label": "Remodel (Gantt)",
-        "body": "# When will it be done, and what can't slip?\nThe tasks are a **Cube Input**: each record names the task, its **days**, and the tasks it waits on as a list (open the chip to edit a row, a list, or a nested table in place). A **Schedule** node runs the critical-path method over a task list: each task's **Duration** in working days and the tasks it waits on (**Predecessors**).\n\nIt appends **Start · Finish · Float · Critical** to the rows. Float is how many days a task can slip without moving the finish; the tasks with none are the critical path. **Project finish** comes out as its own value, and **Gantt** is Mermaid source the Mermaid node draws. A **Holidays** node feeds the days to skip.\n\nTry it: make Paint take 5 days instead of 2 and watch it join the critical path.",
+        "body": "# When will it be done, and what can't slip?\nThe tasks are a **Cube Input**: each record names the task, its **Duration** in working days, and its **Predecessors** as a list. Open the chip to edit a row, a list, or a nested table in place. A **Schedule** node runs the critical-path method over them.\n\nIt appends **Start · Finish · Float · Critical** to the rows. Float is how many days a task can slip without moving the finish; the tasks with none are the critical path. **Project finish** comes out as its own value, and **Gantt** is Mermaid source the Mermaid node draws. A **Holidays** node feeds the days to skip.\n\nTry it: make Paint take 5 days instead of 2 and watch it join the critical path.",
         "color": "violet",
         "width": 380,
         "height": 270

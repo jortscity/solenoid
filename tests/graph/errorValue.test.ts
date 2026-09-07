@@ -54,6 +54,20 @@ describe("installErrorGuards", () => {
     expect((out.result as SolError).code).toBe("#ERROR!");
   });
 
+  it("a thrown SolError keeps its code and message (a verb reporting, not crashing)", async () => {
+    const sync = new ArithmeticNode({ op: "add" });
+    sync.data = () => { throw solError("#REF!", 'column "Date" not found'); };
+    installErrorGuards(sync);
+    const out = sync.data({}) as { result: SolError };
+    expect(out.result.code).toBe("#REF!");
+    expect(out.result.message).toBe('column "Date" not found');
+    const asyncNode = new ArithmeticNode({ op: "add" });
+    asyncNode.data = (async () => { throw solError("#REF!", "gone"); }) as never;
+    installErrorGuards(asyncNode);
+    const late = (await asyncNode.data({})) as { result: SolError };
+    expect(late.result.code).toBe("#REF!");
+  });
+
   it("maps a thrown ShapeError to #SHAPE! (central coercion contract)", () => {
     // The input-coercion wrapper throws ShapeError on a narrowing failure; the
     // guard, wrapping it, must surface that as a tagged #SHAPE! rather than the
