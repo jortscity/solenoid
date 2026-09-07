@@ -757,8 +757,9 @@ export function AllocatorComponent({ data, emit }: NodeProps<AllocatorNodeType>)
 }
 
 // ─── PAYOFF PLANNER ──────────────────────────────────────────────────────────
-const PAYOFF_ORDER_OPTIONS: OpOption<PayoffOrder>[] =
-  (Object.entries(PAYOFF_ORDER_META) as [PayoffOrder, { label: string }][]).map(([value, m]) => ({ value, label: m.label }));
+const PAYOFF_ORDER_OPTIONS: { value: PayoffOrder; label: string; title: string }[] =
+  (Object.entries(PAYOFF_ORDER_META) as [PayoffOrder, { label: string; description: string }][])
+    .map(([value, m]) => ({ value, label: m.label, title: m.description }));
 const PAYOFF_VIEW_OPTIONS: { value: "summary" | "schedule"; label: string; title: string }[] = [
   { value: "summary", label: "Summary", title: "One row per debt: months to clear, interest paid, payoff date" },
   { value: "schedule", label: "Schedule", title: "One row per month: each debt's remaining balance" },
@@ -769,7 +770,7 @@ export function PayoffPlannerComponent({ data, emit }: NodeProps<PayoffPlannerNo
   const [mode, setMode] = useNodeField(data, "mode");
   return (
     <NodeShell node={data} emit={emit}>
-      <ArgSelect value={order} onChange={setOrder} options={PAYOFF_ORDER_OPTIONS} />
+      <SegToggle value={order} options={PAYOFF_ORDER_OPTIONS} onChange={setOrder} />
       <InlineInputs node={data} emit={emit} />
       <SegToggle value={mode} options={PAYOFF_VIEW_OPTIONS} onChange={setMode} />
       <FrameDisplay frame={data.cachedResult} label={nodeDisplayName(data)} />
