@@ -292,7 +292,7 @@ export function nodeResizable(node: ClassicPreset.Node): boolean {
   return node instanceof DisplayNode;
 }
 
-// Detected from SOCKETS, so any new table/frame/lambda node is wide automatically;
+// Detected from SOCKETS, so any new table/frame/cube/lambda node is wide automatically;
 // a manual resize still wins (inline width over the class).
 export function nodeWide(node: ClassicPreset.Node): boolean {
   // Inline charts and drawing pads need the wide card to fit their fixed-width plot.
@@ -304,7 +304,7 @@ export function nodeWide(node: ClassicPreset.Node): boolean {
   const ports = [...Object.values(node.inputs ?? {}), ...Object.values(node.outputs ?? {})];
   return ports.some((p) => {
     const s = (p as { socket?: ClassicPreset.Socket } | undefined)?.socket;
-    return s instanceof SolenoidSocket && (s.dataType === "table" || s.dataType === "frame" || s.dataType === "lambda");
+    return s instanceof SolenoidSocket && (s.dataType === "table" || s.dataType === "frame" || s.dataType === "cube" || s.dataType === "lambda");
   });
 }
 
